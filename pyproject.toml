@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "botyard_real2sim"
+version = "0.1.0"
+description = "Botyard hand unloaded real2sim calibration with Isaac Lab / PhysX."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.12,<3.13"
+dependencies = ["PyYAML>=6"]
+
+[project.optional-dependencies]
+model = ["torch>=2.7"]
+curves = ["matplotlib>=3.9", "plotly>=6"]
+dev = ["pytest>=8", "ruff>=0.11"]
+
+[project.scripts]
+botyard-replay = "botyard_real2sim.cli.replay:main"
+botyard-curves = "botyard_real2sim.cli.curves:main"
+botyard-sweep = "botyard_real2sim.cli.sweep:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/botyard_real2sim"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"configs/real2sim" = "botyard_real2sim/presets"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/scripts", "/tests", "/configs", "/docs", "/examples/commands", "/README.md",
+           "/LICENSE", "/EXTRACTION_MANIFEST.json", "/pyproject.toml", "/.gitignore"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["botyard_real2sim"]
+section-order = ["future", "standard-library", "third-party", "isaaclab", "first-party", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+isaaclab = ["isaaclab", "isaaclab_physx"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401", "F403"]
+"scripts/**/*.py" = ["E402"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+markers = ["unit: isolated logic without a simulator", "integration: requires Isaac Sim / PhysX"]

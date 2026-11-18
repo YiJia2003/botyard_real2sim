@@ -1,0 +1,331 @@
+{
+  "artifact": {
+    "revision": "sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+    "uri": "file:///home/cyj/dexterous_hand_manipulation/docs/S1%E6%89%8B%E6%8C%87-V3.2.STEP",
+    "format": "step",
+    "units": "mm"
+  },
+  "queries": [
+    {
+      "artifact": {
+        "revision": "sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+        "uri": "file:///home/cyj/dexterous_hand_manipulation/docs/S1%E6%89%8B%E6%8C%87-V3.2.STEP",
+        "format": "step",
+        "units": "mm"
+      },
+      "unit_note": "Lengths are in mm.",
+      "entity_id_scheme": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1"
+      },
+      "coordinate_frame": {
+        "id": "step-model",
+        "origin": [
+          0,
+          0,
+          0
+        ],
+        "axes": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "handedness": "right",
+        "units": "mm"
+      },
+      "subjects": [
+        {
+          "type": "geometry",
+          "entity": {
+            "authority": "cad-mcp-server",
+            "idScheme": "occt-topology-v1",
+            "id": "body:11",
+            "kind": "body"
+          }
+        },
+        {
+          "type": "geometry",
+          "entity": {
+            "authority": "cad-mcp-server",
+            "idScheme": "occt-topology-v1",
+            "id": "body:60",
+            "kind": "body"
+          }
+        },
+        {
+          "type": "geometry",
+          "entity": {
+            "authority": "cad-mcp-server",
+            "idScheme": "occt-topology-v1",
+            "id": "body:194",
+            "kind": "body"
+          }
+        }
+      ],
+      "kind": "section",
+      "units": {
+        "length": "mm",
+        "area": "mm2",
+        "volume": "mm3",
+        "angle": "deg",
+        "curvature": "mm-1"
+      },
+      "entity_count": 3,
+      "results": [
+        {
+          "entity_id": "body:11",
+          "results": {
+            "section_by_plane": {
+              "edge_count": 0,
+              "edges": [],
+              "total_length": 0
+            }
+          }
+        },
+        {
+          "entity_id": "body:60",
+          "results": {
+            "section_by_plane": {
+              "edge_count": 2,
+              "edges": [
+                {
+                  "bbox": {
+                    "max": [
+                      7.750000414539585,
+                      1.1891056006843794e-14,
+                      78.76053161047855
+                    ],
+                    "min": [
+                      7.0000004136985,
+                      -3.4355111483649105e-16,
+                      77.26053161047855
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:0",
+                  "length": 2.3561944901923444
+                },
+                {
+                  "bbox": {
+                    "max": [
+                      8.500000413698501,
+                      3.435511148365043e-16,
+                      78.76053161047855
+                    ],
+                    "min": [
+                      7.750000412857415,
+                      -1.1891056006843794e-14,
+                      77.26053161047855
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:1",
+                  "length": 2.3561944901923457
+                }
+              ],
+              "total_length": 4.71238898038469
+            }
+          }
+        },
+        {
+          "entity_id": "body:194",
+          "results": {
+            "section_by_plane": {
+              "edge_count": 2,
+              "edges": [
+                {
+                  "bbox": {
+                    "max": [
+                      9.716702504385061,
+                      8.636120177967234e-17,
+                      3.5629851485900548
+                    ],
+                    "min": [
+                      8.165077034872112,
+                      -9.264960500208768e-17,
+                      2.4890158919581467
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:0",
+                  "length": 2.5132741228718354
+                },
+                {
+                  "bbox": {
+                    "max": [
+                      9.668327973898009,
+                      9.264960500208768e-17,
+                      3.0369544052219624
+                    ],
+                    "min": [
+                      8.11670250438506,
+                      -8.636120177967234e-17,
+                      1.9629851485900542
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:1",
+                  "length": 2.513274122871835
+                }
+              ],
+              "total_length": 5.026548245743671
+            }
+          }
+        }
+      ]
+    },
+    {
+      "artifact": {
+        "revision": "sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+        "uri": "file:///home/cyj/dexterous_hand_manipulation/docs/S1%E6%89%8B%E6%8C%87-V3.2.STEP",
+        "format": "step",
+        "units": "mm"
+      },
+      "unit_note": "Lengths are in mm.",
+      "entity_id_scheme": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1"
+      },
+      "coordinate_frame": {
+        "id": "step-model",
+        "origin": [
+          0,
+          0,
+          0
+        ],
+        "axes": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "handedness": "right",
+        "units": "mm"
+      },
+      "subjects": [
+        {
+          "type": "geometry",
+          "entity": {
+            "authority": "cad-mcp-server",
+            "idScheme": "occt-topology-v1",
+            "id": "body:11",
+            "kind": "body"
+          }
+        }
+      ],
+      "kind": "section",
+      "units": {
+        "length": "mm",
+        "area": "mm2",
+        "volume": "mm3",
+        "angle": "deg",
+        "curvature": "mm-1"
+      },
+      "entity_count": 1,
+      "results": [
+        {
+          "entity_id": "body:11",
+          "results": {
+            "section_by_plane": {
+              "edge_count": 4,
+              "edges": [
+                {
+                  "bbox": {
+                    "max": [
+                      2.5000000000000235,
+                      -2.05,
+                      -8.499172810930949
+                    ],
+                    "min": [
+                      -1.4107397826096169,
+                      -2.05,
+                      -11.089997220677926
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:0",
+                  "length": 6.283185307179586
+                },
+                {
+                  "bbox": {
+                    "max": [
+                      2.410739782609664,
+                      -2.05,
+                      -7.089997220677926
+                    ],
+                    "min": [
+                      -1.4999999999999765,
+                      -2.05,
+                      -9.680821630424902
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:1",
+                  "length": 6.2831853071795845
+                },
+                {
+                  "bbox": {
+                    "max": [
+                      1.4553698913048443,
+                      -2.05,
+                      -8.089997220677926
+                    ],
+                    "min": [
+                      -0.49999999999997646,
+                      -2.05,
+                      -9.385409425551414
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:2",
+                  "length": 3.141592653589793
+                },
+                {
+                  "bbox": {
+                    "max": [
+                      1.5000000000000235,
+                      -2.05,
+                      -8.794585015804438
+                    ],
+                    "min": [
+                      -0.4553698913047971,
+                      -2.05,
+                      -10.089997220677926
+                    ]
+                  },
+                  "curve_type": "circle",
+                  "id": "section-edge:3",
+                  "length": 3.141592653589794
+                }
+              ],
+              "total_length": 18.84955592153876
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

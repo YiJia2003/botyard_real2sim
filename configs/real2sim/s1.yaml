@@ -1,0 +1,309 @@
+# Detailed S1 model, 2026-11-18. Motor spool RADIUS = 0.005 m.
+# CAD measurements: docs/cad/*.json; assignments/assumptions: docs/REAL2SIM_GEOMETRY.md.
+# Return springs: drawing free length 20 mm, installed 24 mm, tethers J2=17/J3=19 mm.
+# Return spring stiffness 1000 N/m is an UNFITTED seed, not inferred from 72A material.
+# Routing-surplus spring 1000 N/m, 20 -> 23 mm is an UNFITTED example for all ten tendons.
+# Geometry applies only to the four S1 fingers; thumb geometry remains provisional.
+# A shared YAML anchor starts all four fingers at the same editable S1 geometry.
+# Offsets align reference return-spring length to the drawing's 24 mm; they do not change moment arms.
+# Stateful inertial routing and friction enabled. ALL new masses/contact/friction values are UNFITTED seeds.
+
+# 【中文】S1 详细预设，也是当前默认预设（scripts/real2sim_replay.py 未指定
+# --config 时用它）。与 default.yaml 的旧准静态常力臂模型相比，本文件启用：
+#   - 几何路径驱动的变力臂：四指按 h(q)=L(0)-L(q) 与解析雅可比算长度和力矩；
+#   - 两节点有惯量的走线传动（routing_model: dynamic）与走线摩擦/接触状态；
+#   - 独立积分的电机绕线轮角（不从关节角拷贝）。
+# 单位：长度与半径 m、角度 rad、角速度 rad/s、刚度 N/m 或 N·m/rad、阻尼
+# N·s/m 或 N·m·s/rad、摩擦 N·m、质量 kg、时间 s；controller 段沿用固件的
+# deg、deg/s、mrad/s（单位写在各键名后缀里）。
+# 关键限制：所有刚度/摩擦/质量都是**未拟合初值**，不是辨识结果；5 mm 是绕线轮
+# **半径**而不是直径；controller 数值只是当前源码分支的复刻，采集时固件版本
+# 不同必须重新核对。本文件是快照（load_config/save_config 可读写），不是标定产物。
+
+# ── 控制器：固件 Fallback_pidControl 位置环 ──
+controller:
+  # 比例增益 (deg/s)/deg。具名部分覆盖：未列出的关节取 default: 20.0；
+  # 拇指两关节 THJ1/THJ2 与四指 J3 用较小的 15/10。
+  kp_deg_s_per_deg:
+    default: 20.0
+    THJ1: 15.0
+    THJ2: 10.0
+    FFJ3: 10.0
+    MFJ3: 10.0
+    RFJ3: 10.0
+    LFJ3: 10.0
+  # 积分增益 (deg/s)/(deg·step)：每个控制步累加角误差；标量广播到全部 10 关节。
+  ki_deg_s_per_deg_step: 1.0
+  # 微分增益；0.0 表示当前固件分支不使用微分作用。
+  kd_deg_s_per_deg_step: 0.0
+  # 目标角限幅 deg（0.5–89.5 deg），避开关节机械端点。
+  min_angle_deg: 0.5
+  max_angle_deg: 89.5
+  # 死区 deg：|角误差| 小于该值时误差清零，并复位积分项。
+  dead_zone_deg: 1.0
+  # 积分分离区 deg：只有误差落在此范围内才累加积分。
+  integral_region_deg: 2.0
+  # 积分项限幅 deg/s。
+  integral_limit_deg_s: 10.0
+  # 指令最大速度无效（<= 1 deg/s）时回退使用的默认速度 deg/s。
+  default_speed_deg_s: 120.0
+  # 指令最大速度上限 deg/s。
+  speed_cap_deg_s: 360.0
+  # 电机内环速度请求限幅 mrad/s（固件为 ±7000 mrad/s）。
+  output_cap_mrad_s: 7000.0
+  # 控制周期 s：0.003 s 对应定时器 ARR=2999 计满 3000 个 µs，是真正的调度周期。
+  control_period_s: 0.003
+  # 固件状态估计里整数截断后的 2 ms 时间量 s。只是记录/兼容量，不能当调度周期；
+  # 当前位置环分支本身不乘它。
+  firmware_time_delta_s: 0.002
+  # 角度反馈量化步长 deg（模拟编码器分辨率 0.01 deg）。
+  angle_feedback_resolution_deg: 0.01
+  # 是否量化角度反馈 / 输出（按固件 int 截断规则；量化只是传感器近似）。
+  quantize_angle_feedback: true
+  quantize_output: true
+  # 冷启动前每个手指要等待的评估次数；0 = 热启动（标定回放默认），50 复现冷启动。
+  startup_pair_evaluations: 0
+
+# ── 腱绳、走线弹簧、回位拉簧、关节摩擦、几何与走线动力学 ──
+tendon:
+  # 常量关节力臂 m（未配置 geometry 的通道与拇指使用）：5 mm。
+  joint_moment_arm_m: 0.005
+  # 电机绕线轮半径 m（**不是直径**）：5 mm；电机角 = 收绳量 / 该半径。
+  drum_radius_m: 0.005
+  # 跨 J3 的带符号力臂 m（5 元素，按 thumb/index/middle/ring/little）；
+  # 这里只给 default，符号仍待实测运动方向与穿绳路径确认。
+  crossing_moment_arm_m:
+    default: 0.005
+  # 材料绳等效刚度 N/m。
+  cable_stiffness_n_per_m:
+    default: 8000.0
+  # 材料绳阻尼 N·s/m；dynamic 走线要求为 0，耗散由走线摩擦承担。
+  cable_damping_n_s_per_m: 0.0
+  # 初始松弛间隙 m 与初始张力 N：同一根绳不能同时为正。
+  cable_slack_m: 0.0
+  initial_tension_n: 0.0
+  # 绳端速度一阶滞后 s；0 = 理想速度端口，不建立电机模型。
+  tendon_speed_lag_s: 0.0
+  # 关节扭转弹簧静止角 rad 与扭转刚度 N·m/rad（几何回位弹簧存在时替代该通道弹簧项）。
+  spring_rest_angle_rad: 0.0
+  spring_stiffness_nm_per_rad:
+    default: 0.01
+  # 弹簧预紧力矩 N·m。
+  spring_preload_nm: 0.0
+  # 关节黏性摩擦 N·m·s/rad、Coulomb 摩擦幅值 N·m、平滑 Stribeck 低速幅值 N·m。
+  viscous_friction_nm_s_per_rad: 0.001
+  coulomb_friction_nm: 0.002
+  static_friction_nm: 0.002
+  # Stribeck 特征角速度 rad/s 与摩擦低速平滑角速度 rad/s。
+  stribeck_speed_rad_s: 0.05
+  friction_smoothing_speed_rad_s: 0.01
+  # 跨关节导向件摩擦系数与包角（5 元素，预留）：当前只允许 0，非零会报错。
+  crossing_guide_mu: 0.0
+  crossing_wrap_angle_rad: 0.0
+  # 导向件滑移平滑速度 m/s（预留字段，当前仅做正性校验）。
+  guide_slip_smoothing_m_s: 0.0001
+  # 电机编码器参考零位 rad；与绳长参考独立，初始化时会按反馈行重估。
+  motor_zero_angle_rad: 0.0
+  # 走线等效弹簧刚度 N/m（未拟合初值）。与下面的回位拉簧刚度是**两套独立参数**，
+  # 此处数值相同，但不要当成同一个物理量。
+  routing_spring_stiffness_n_per_m: 1000.0
+  # 走线等效弹簧自由长 m = 20 mm。
+  routing_spring_free_length_m: 0.02
+  # 走线等效弹簧最大长 m = 23 mm；达到后停止伸长，但张力仍可继续升高。
+  routing_spring_max_length_m: 0.023
+  # 回位实体拉簧刚度 N/m = 1000 N/m（未拟合初值，不是由 72A 材料推算的）。
+  return_spring_stiffness_n_per_m: 1000.0
+  # 回位拉簧自由长 m = 20 mm（图纸值）。
+  return_spring_free_length_m: 0.02
+  # 回位拉簧初拉力 N（暂取 0）。
+  return_spring_initial_tension_n: 0.0
+  # 回位短绳长度 m：J2 默认 17 mm，四指 J3 覆盖为 19 mm（图纸值）。
+  return_tether_length_m:
+    default: 0.017
+    FFJ3: 0.019
+    MFJ3: 0.019
+    RFJ3: 0.019
+    LFJ3: 0.019
+  # 常量路径长度补偿 m：让参考姿态下的实体弹簧长度对齐图纸的 24 mm 安装长，
+  # 补偿未建模的端钩/固定路径长度；**不改变力臂**。
+  # J2 取 1 mm，四指 J3 取约 6.601 mm（按 24 mm 安装长对齐），拇指保持 0。
+  return_path_length_offset_m:
+    default: 0.0
+    FFJ2: 0.001
+    MFJ2: 0.001
+    RFJ2: 0.001
+    LFJ2: 0.001
+    FFJ3: 0.0066010540655341635
+    MFJ3: 0.0066010540655341635
+    RFJ3: 0.0066010540655341635
+    LFJ3: 0.0066010540655341635
+  # 四指共享的平面几何：index 用锚点 &id001 定义，middle/ring/little 用 *id001
+  # 引用同一份数据，因此改一处即四指同步（这只表示“共同起点”，不代表四指已
+  # 分别实测）。thumb 没有对应 CAD，故不在此配置，仍走常量力臂假设（待确认）。
+  # 键含义：
+  #   centers_m          3 个 (x, z) 点，顺序 J3 / J2 / J1，单位 m，取自 STEP 的 XZ 平面；
+  #   distal_mimic_ratio J1=J2 的从动比例（1.0，对应 USD 中的机械 mimic）；
+  #   provenance         几何来源：S1 STEP 的 sha256 与文档指引；实体到“关节/导向”
+  #                      的功能分配是结合图片推定的，不是 CAD 自动确认；
+  #   tendons/returns    每路 first/second 的节点列表：frame（base/proximal/middle/
+  #                      distal，表示附着连杆）+ point_m (x, z)；radius_m>0 表示内部
+  #                      圆导向件半径 m；winding=±1 为绕行方向；detachable 表示包角
+  #                      归零时可脱离导向件（每条路径最多一个）。
+  # 符号约定：使用 STEP 的 XZ 平面，正角从 +z 向 -x 弯曲。
+  geometry:
+    index: &id001
+      centers_m:
+      - - 0.0
+        - 0.0
+      - - -0.000499999577329705
+        - 0.04500052882190407
+      - - -0.00049999957732972
+        - 0.07000052882190405
+      distal_mimic_ratio: 1.0
+      provenance: S1 STEP sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7;
+        see docs/REAL2SIM_GEOMETRY.md. Frames/topology inferred from J2.png/J3.png;
+        not calibrated.
+      tendons:
+        first:
+        - frame: base
+          point_m:
+          - 0.0063
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: 1
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0045000004226702596
+          - 0.05399311430820362
+          radius_m: 0.002
+          winding: 1
+        - frame: middle
+          point_m:
+          - -0.00049999957732972
+          - 0.07000052882190405
+          radius_m: 0.005
+          winding: -1
+        - frame: distal
+          point_m:
+          - 0.00625
+          - 0.08098999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.0035
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0005
+          - -0.009100000000000233
+          radius_m: 0.002
+          winding: 1
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: proximal
+          point_m:
+          - 0.0004942462494912942
+          - 0.03410052882190406
+      returns:
+        first:
+        - frame: proximal
+          point_m:
+          - 0.0075
+          - 0.0029899972206776943
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: 1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0075
+          - 0.04298999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.00891670250438506
+          - 0.0027529823692677485
+        - frame: proximal
+          point_m:
+          - 0.006256144327246823
+          - 0.03905456216032133
+    # 以下三指直接引用 index 的锚点数据（不复制、不覆盖任何数值）。
+    middle: *id001
+    ring: *id001
+    little: *id001
+  # 启用两节点有惯量走线（可选值 quasistatic = 旧的代数串联弹簧，无质量无历史）。
+  routing_model: dynamic
+  # 走线等效质量 kg（两个节点各占一半）；不是弹簧质量，也不是电机转子惯量。
+  routing_mass_kg: 0.002
+  # 材料柔度分配到近端的比例 f=0.5：kp=k_c/f、kd=k_c/(1-f)，串联柔度保持不变。
+  routing_proximal_compliance_fraction: 0.5
+  # 走线静摩擦系数 0.25 / 动摩擦系数 0.15（未拟合初值；要求静 >= 动）。
+  routing_friction_mu_static: 0.25
+  routing_friction_mu_dynamic: 0.15
+  # 微滑（弹塑性）刚度 N/m 与黏性摩擦系数 N·s/m（均为未拟合初值）。
+  routing_bristle_stiffness_n_per_m: 2000.0
+  routing_viscous_friction_n_s_per_m: 0.05
+  # Stribeck 特征速度 m/s。
+  routing_stribeck_speed_m_s: 0.002
+  # 法向力预紧 N（当前为 0）。
+  routing_normal_preload_n: 0.0
+  # 基础包角 rad 与接触状态对包角的增益 rad（增益允许为负）。
+  routing_wrap_base_rad: 0.25
+  routing_wrap_contact_gain_rad: 1.5
+  # 接触状态：基线 c0（0–1）、对张力/收紧量/几何路径的增益，以及张力尺度 N、
+  # 路径尺度 m（增益允许为负，需由数据确定）。
+  routing_contact_baseline: 0.1
+  routing_contact_tension_gain: 0.5
+  routing_contact_extension_gain: 0.3
+  routing_contact_path_gain: 0.1
+  routing_contact_tension_scale_n: 5.0
+  routing_contact_path_scale_m: 0.02
+  # 接触状态加载/释放时间常数 s（加载快、释放慢：0.02 s 对 0.08 s）。
+  routing_contact_load_tau_s: 0.02
+  routing_contact_release_tau_s: 0.08
+  # 内部隐式积分子步上限 s（0.1 ms），与 PhysX 物理步长相互独立。
+  routing_max_substep_s: 0.0001
+
+# ── 曲线、时间对齐与绘图选项（不影响物理，只用于回放对比与作图）──
+curves:
+  # 原始 effort 刻度换算 N：0.01 N/计数；必须与采集时固件/驱动一致。
+  tension_raw_to_N: 0.01
+  # 实测张力偏置 N。
+  real_tension_bias_N: 0.0
+  # 对齐方式：command_edge = 以指令阶跃前沿对齐。
+  alignment: command_edge
+  # 指令沿判定阈值 rad（0.008726646259971648 rad = 0.5 deg）。
+  alignment_threshold_rad: 0.008726646259971648
+  # 指定用于对齐的关节；null 表示在所有选中关节里找最早的指令跳变。
+  alignment_joint: null
+  # 仿真曲线整体时移 s（实机曲线不做该平移）。
+  sim_shift_s: 0.0
+  # 稳态窗口长度 s，用于取均值与误差统计。
+  steady_window_s: 0.5
+  # 插值允许的最大缺失间隔 s；超过该间隔不插值。
+  max_interp_gap_s: 0.1
+  # 只使用 is_fallback 为真的区间（false = 不过滤）。
+  fallback_only: false
+  # 是否画第三指令字段（该字段不设张力）；false 可避免压缩实际张力曲线尺度。
+  show_tension_command: false
+  # 图标题：明确标注“几何驱动但未标定”。
+  title: S1 unloaded real2sim — geometry-informed, not calibrated

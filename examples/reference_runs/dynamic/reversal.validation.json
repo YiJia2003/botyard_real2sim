@@ -1,0 +1,177 @@
+{
+  "source": "logs/real2sim_dynamic_validation/reversal.csv",
+  "samples": 368,
+  "calibrated": false,
+  "channels": {
+    "THJ1": {
+      "motor_speed_min_max_rad_s": [
+        -2.0930001735687256,
+        2.0940001010894775
+      ],
+      "tension_drop_min_max_N": [
+        -0.04479729384183884,
+        0.1141100749373436
+      ],
+      "proximal_friction_min_max_N": [
+        -0.041474469006061554,
+        0.05085545405745506
+      ],
+      "max_solver_residual_N": 1.1812079092621275e-13,
+      "max_energy_residual_J": 3.430933009042839e-18,
+      "max_length_balance_error_m": 2.168404344971009e-19
+    },
+    "THJ2": {
+      "motor_speed_min_max_rad_s": [
+        -1.5950000286102295,
+        0.8720000386238098
+      ],
+      "tension_drop_min_max_N": [
+        -0.001532029826194048,
+        0.029090898111462593
+      ],
+      "proximal_friction_min_max_N": [
+        -0.000682896061334759,
+        0.01317148469388485
+      ],
+      "max_solver_residual_N": 2.071081445177616e-14,
+      "max_energy_residual_J": 2.741647747300617e-19,
+      "max_length_balance_error_m": 2.168404344971009e-19
+    },
+    "FFJ2": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        2.0940001010894775
+      ],
+      "tension_drop_min_max_N": [
+        -0.0037429449148476124,
+        1.4314446449279785
+      ],
+      "proximal_friction_min_max_N": [
+        -1.7167778700380443e-12,
+        0.7403467297554016
+      ],
+      "max_solver_residual_N": 2.4913404672588513e-13,
+      "max_energy_residual_J": 6.898156251355727e-17,
+      "max_length_balance_error_m": 2.168404344971009e-19
+    },
+    "FFJ3": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        1.7450001239776611
+      ],
+      "tension_drop_min_max_N": [
+        -0.003090550424531102,
+        4.050938606262207
+      ],
+      "proximal_friction_min_max_N": [
+        -1.3922278885303285e-09,
+        2.1162073612213135
+      ],
+      "max_solver_residual_N": 2.544631172440859e-13,
+      "max_energy_residual_J": 9.753573799721428e-17,
+      "max_length_balance_error_m": 2.168404344971009e-19
+    },
+    "MFJ2": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -8.967104804469272e-06,
+        4.1194982713932404e-07
+      ],
+      "proximal_friction_min_max_N": [
+        -1.2997353415755697e-08,
+        3.042466545366551e-08
+      ],
+      "max_solver_residual_N": 2.028246861980024e-20,
+      "max_energy_residual_J": 4.3595511969172144e-30,
+      "max_length_balance_error_m": 2.5849394142282115e-26
+    },
+    "MFJ3": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -9.396853783982806e-06,
+        6.449191005231114e-06
+      ],
+      "proximal_friction_min_max_N": [
+        -2.277365922509489e-07,
+        1.6399646085574204e-07
+      ],
+      "max_solver_residual_N": 8.099752558119247e-20,
+      "max_energy_residual_J": 4.257080363898407e-28,
+      "max_length_balance_error_m": 4.1359030627651384e-25
+    },
+    "RFJ2": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -7.6144165177538525e-06,
+        3.465909230726538e-07
+      ],
+      "proximal_friction_min_max_N": [
+        -1.0537973160751335e-08,
+        2.76703193691219e-08
+      ],
+      "max_solver_residual_N": 3.3930948726925195e-21,
+      "max_energy_residual_J": 1.2490242496131155e-30,
+      "max_length_balance_error_m": 2.5849394142282115e-26
+    },
+    "RFJ3": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -8.472341505694203e-06,
+        6.6959728428628296e-06
+      ],
+      "proximal_friction_min_max_N": [
+        -2.3852481945141335e-07,
+        1.5801765584910754e-07
+      ],
+      "max_solver_residual_N": 8.618560238312506e-20,
+      "max_energy_residual_J": 1.3293286069833256e-28,
+      "max_length_balance_error_m": 4.1359030627651384e-25
+    },
+    "LFJ2": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -7.273941264429595e-06,
+        4.294254267733777e-07
+      ],
+      "proximal_friction_min_max_N": [
+        -1.3370956786218358e-08,
+        2.4395397701937327e-08
+      ],
+      "max_solver_residual_N": 1.3138936849792292e-20,
+      "max_energy_residual_J": 3.73329934047144e-30,
+      "max_length_balance_error_m": 3.2311742677852644e-27
+    },
+    "LFJ3": {
+      "motor_speed_min_max_rad_s": [
+        0.0,
+        0.0
+      ],
+      "tension_drop_min_max_N": [
+        -7.708784323767759e-06,
+        6.96533379596076e-06
+      ],
+      "proximal_friction_min_max_N": [
+        -2.5103014422711567e-07,
+        1.5192843250133592e-07
+      ],
+      "max_solver_residual_N": 8.607972326471827e-20,
+      "max_energy_residual_J": 4.17289315120438e-28,
+      "max_length_balance_error_m": 4.1359030627651384e-25
+    }
+  }
+}

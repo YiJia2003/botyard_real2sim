@@ -1,0 +1,140 @@
+{
+  "artifact": {
+    "revision": "sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+    "uri": "file:///home/cyj/dexterous_hand_manipulation/docs/S1%E6%89%8B%E6%8C%87-V3.2.STEP",
+    "format": "step",
+    "units": "mm"
+  },
+  "coordinate_frame": {
+    "id": "step-model",
+    "origin": [
+      0,
+      0,
+      0
+    ],
+    "axes": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "handedness": "right",
+    "units": "mm"
+  },
+  "unit_note": "Lengths are in mm.",
+  "size": {
+    "bounding_box": {
+      "min": [
+        -9.426206573105059,
+        -9.43686420937587,
+        -27.08616569206868
+      ],
+      "max": [
+        13.006616894744857,
+        9.436864209375868,
+        104.04622991254499
+      ],
+      "method": "conservative-envelope",
+      "note": "Axis-aligned envelope of all faces, free edges and vertices. Non-planar faces are bounded over their full UV range, so a trimmed curved face can overstate the exact extent."
+    },
+    "dimensions": {
+      "width": 22.432823467849914,
+      "height": 18.87372841875174,
+      "depth": 131.13239560461366
+    },
+    "volume": 22535.76295099412,
+    "volume_available": true,
+    "volume_basis": "solid-only",
+    "surface_area": 32660.783780136724,
+    "units": {
+      "length": "mm",
+      "area": "mm2",
+      "volume": "mm3"
+    }
+  },
+  "structure": {
+    "body_count": 197,
+    "shell_count": 197,
+    "is_assembly": true,
+    "component_occurrences": [
+      "NAUO55",
+      "NAUO56",
+      "NAUO57",
+      "NAUO58",
+      "NAUO59",
+      "NAUO60",
+      "NAUO61",
+      "NAUO62",
+      "NAUO63",
+      "NAUO40",
+      "NAUO41",
+      "NAUO42",
+      "NAUO43",
+      "NAUO44",
+      "NAUO45",
+      "NAUO46",
+      "NAUO47",
+      "NAUO48",
+      "NAUO49",
+      "NAUO50",
+      "NAUO51",
+      "NAUO52",
+      "NAUO53",
+      "NAUO54",
+      "NAUO30",
+      "NAUO31",
+      "NAUO32",
+      "NAUO33",
+      "NAUO34",
+      "NAUO35",
+      "NAUO36",
+      "NAUO37",
+      "NAUO38",
+      "NAUO39",
+      "NAUO4",
+      "NAUO5",
+      "NAUO6",
+      "NAUO8",
+      "NAUO9",
+      "NAUO10",
+      "NAUO11",
+      "NAUO12",
+      "NAUO13",
+      "NAUO14",
+      "NAUO15",
+      "NAUO16",
+      "NAUO17",
+      "NAUO18",
+      "NAUO19",
+      "NAUO20",
+      "NAUO21",
+      "NAUO22",
+      "NAUO23",
+      "NAUO24",
+      "NAUO25",
+      "NAUO26",
+      "NAUO27",
+      "NAUO28",
+      "NAUO29"
+    ]
+  },
+  "health": {
+    "is_valid": true,
+    "complexity": {
+      "body_count": 197,
+      "face_count": 6193,
+      "edge_count": 16332
+    }
+  }
+}

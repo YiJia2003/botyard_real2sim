@@ -1,0 +1,687 @@
+{
+  "project": "botyard_real2sim",
+  "extracted_at": "2026-11-18T23:03:08.969046+08:00",
+  "source_directory": "/home/cyj/dexterous_hand_manipulation",
+  "source_head": "946e64ffb224008d5332cba67f200504c4b044a1",
+  "source_state": "latest working tree including pre-existing staged and unstaged changes",
+  "copied_files": [
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/__init__.py",
+      "destination": "src/botyard_real2sim/__init__.py",
+      "source_sha256": "743e487fb6397555f93979b15298a35ac3ac656f9f902f07fb118b3d5a80ffba",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "eebd8792c154c574eff32cf99e5edc383b90ba9a85f638335997bb483d2f6175"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/commands.py",
+      "destination": "src/botyard_real2sim/commands.py",
+      "source_sha256": "12adfe1fa06e73b67911e3c7fd7b4f589210d02ef52a43ed8e697135e8450fd4",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "12adfe1fa06e73b67911e3c7fd7b4f589210d02ef52a43ed8e697135e8450fd4"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/config.py",
+      "destination": "src/botyard_real2sim/config.py",
+      "source_sha256": "11a2c1f324ca54618957cfe380b325cbc7980c86e9bf83b0511f4af1fce37b47",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "11a2c1f324ca54618957cfe380b325cbc7980c86e9bf83b0511f4af1fce37b47"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/controller.py",
+      "destination": "src/botyard_real2sim/controller.py",
+      "source_sha256": "a2e7d96b6600bc94cc489637aa67adcfd9c8ef242fe8503269e58e452383fdbf",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "a2e7d96b6600bc94cc489637aa67adcfd9c8ef242fe8503269e58e452383fdbf"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/geometry.py",
+      "destination": "src/botyard_real2sim/geometry.py",
+      "source_sha256": "7d2486cafc2072c6d205d3a59e2e7bf09ef6835fb9183f3f6cc68ae39b12447a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "7d2486cafc2072c6d205d3a59e2e7bf09ef6835fb9183f3f6cc68ae39b12447a"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/geometry_config.py",
+      "destination": "src/botyard_real2sim/geometry_config.py",
+      "source_sha256": "908bae0d22680166936ba99ce4e2797a0079c48530b773f134b7af188357eb30",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "908bae0d22680166936ba99ce4e2797a0079c48530b773f134b7af188357eb30"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/model.py",
+      "destination": "src/botyard_real2sim/model.py",
+      "source_sha256": "877321cd3c6df02168c01a9dee21a19ba8cad8ecafc38357adc8c95f41257ac2",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "1907f94e5e2e69a128e66ddcc8cee38087de63ff9c8a3e289269542e5671a147"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/parameters.py",
+      "destination": "src/botyard_real2sim/parameters.py",
+      "source_sha256": "561026925326b74b325bdcedd974fe7ae2e555535f0ecd825f0405c5c36436cd",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "5f56c07db60ce6fb75601f8f22fbc7e84cd4c0434c833750c92a06aa40218a69"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/protocol.py",
+      "destination": "src/botyard_real2sim/protocol.py",
+      "source_sha256": "6407658d638fa1762052074fab2b883ea2aee5da36ee30bf3150a8c0913358a2",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "6407658d638fa1762052074fab2b883ea2aee5da36ee30bf3150a8c0913358a2"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/routing_dynamics.py",
+      "destination": "src/botyard_real2sim/routing_dynamics.py",
+      "source_sha256": "d053b9d9c30892868231a3aea1352e5c0839982c56979756be32889daf0b764f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d053b9d9c30892868231a3aea1352e5c0839982c56979756be32889daf0b764f"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/runtime.py",
+      "destination": "src/botyard_real2sim/runtime.py",
+      "source_sha256": "0e5620446d6f55190efbf1738290b908e6b3769984e1f6f6d793332609858c97",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "0e5620446d6f55190efbf1738290b908e6b3769984e1f6f6d793332609858c97"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/scene.py",
+      "destination": "src/botyard_real2sim/scene.py",
+      "source_sha256": "9c9abadfdd0a2299489a4c9145771a0f5d0c2f15f66c8699e53750d327a2b288",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "66809aa5985f90917cf8d00bd42dbd1634df4789b743e1893ce8d15daf9f22fe"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/real2sim/transmission.py",
+      "destination": "src/botyard_real2sim/transmission.py",
+      "source_sha256": "d77fb9dd58171476284d9dca44efd04b606767dc531b55944c9931940184f2fe",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d77fb9dd58171476284d9dca44efd04b606767dc531b55944c9931940184f2fe"
+    },
+    {
+      "source": "scripts/real2sim_replay.py",
+      "destination": "src/botyard_real2sim/cli/replay.py",
+      "source_sha256": "4f4c56665880a2437fffb2fc375079f76627a53ba2a964d344969d080df7648c",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "60448b6a3f138e8d4a80ce6534b65916db529bd2d875751c8e849b8b2421d8bf"
+    },
+    {
+      "source": "scripts/real2sim_curves.py",
+      "destination": "src/botyard_real2sim/cli/curves.py",
+      "source_sha256": "f34f54bb81b8159c1c905e618fca4ca734cfacd1b9e65693ca24f6d5109e0050",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "f34f54bb81b8159c1c905e618fca4ca734cfacd1b9e65693ca24f6d5109e0050"
+    },
+    {
+      "source": "scripts/real2sim_sweep.py",
+      "destination": "src/botyard_real2sim/cli/sweep.py",
+      "source_sha256": "d3b8d4ce2fa0be56d3f77f13a0942538ccfa2d416de17a03ef340d4389ff7582",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "8106c4b504dd1ef0915d83913f5827db0c894740965307883a652cc032b2728c"
+    },
+    {
+      "source": "tests/test_real2sim_commands.py",
+      "destination": "tests/test_real2sim_commands.py",
+      "source_sha256": "1c90cbeb11d37496c669b15d37d3ddc21276191d151f99bf4b7a7a820e729f42",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "57418660d428871402a7ee7981e2f9822942ce0e871c57c927b3d8868a9a4388"
+    },
+    {
+      "source": "tests/test_real2sim_controller.py",
+      "destination": "tests/test_real2sim_controller.py",
+      "source_sha256": "33317fb849c945a009fc24f58cc1d9e8ac41387d7081ec867a545038252a32c0",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "5f0bbfc80388c90abc18cb52d84ea66658016158bfed8d7d243cbc81cbb315f4"
+    },
+    {
+      "source": "tests/test_real2sim_curves.py",
+      "destination": "tests/test_real2sim_curves.py",
+      "source_sha256": "b17270ac335d65145847c2a183fc3d9543957554e98bba58a21f0faf9be9db75",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "fec688ccac2ed7c538fe2b69fc1437a07c7d5abbbea0e3f2e94a65d07e244f97"
+    },
+    {
+      "source": "tests/test_real2sim_geometry_transmission.py",
+      "destination": "tests/test_real2sim_geometry_transmission.py",
+      "source_sha256": "7f14954a80e8851769f7eff73384353297d781cf6bb7a5ba31355ec5f20c40d5",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "a77b8f3ed307036cf93aaf95f565abb4048b74b8604c55b2a3c5a2fc19b87560"
+    },
+    {
+      "source": "tests/test_real2sim_model.py",
+      "destination": "tests/test_real2sim_model.py",
+      "source_sha256": "969db98ff989002749c7743577df72b53e0873bfcf24039890c4fdc47a81943d",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "f90aa65bf3a562e327483da5f7d742dee4716987227e0e0149c0c38ba665b778"
+    },
+    {
+      "source": "tests/test_real2sim_protocol.py",
+      "destination": "tests/test_real2sim_protocol.py",
+      "source_sha256": "a3b72df6c69e6c6fbe0fc4aabc8873d214eaece5007da0dfd562b0f98ca06004",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "e0f2b0351a241538377313ddf81bc9f08dc21b4abe780893555fea882fbe6d5a"
+    },
+    {
+      "source": "tests/test_real2sim_replay.py",
+      "destination": "tests/test_real2sim_replay.py",
+      "source_sha256": "005b2dfd16214c53172c55a459c3734516bbc19708979470054083b5cfcee190",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "380c8009383d1741a176fbb245f0e647ddf0b67c8134e68c70bdf25b4cbf4854"
+    },
+    {
+      "source": "tests/test_real2sim_routing_dynamics.py",
+      "destination": "tests/test_real2sim_routing_dynamics.py",
+      "source_sha256": "eec09b2cf0fa316e85b57570a6d60c69e74aeb65e9f802a4cb62e086e6be247e",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "7bfbef3a4698227a10c274e2be3e6a6e697c49270874ea0e05cc38eb884f0f15"
+    },
+    {
+      "source": "tests/test_real2sim_runtime.py",
+      "destination": "tests/test_real2sim_runtime.py",
+      "source_sha256": "2c3bdbeb9b558a912d065121401aea41befdab41aa0042e7f73d056067a9d87f",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "16d5b756e0306e0c708c176754e2dfd96de28d50ced177f7c13f23e62add0ba7"
+    },
+    {
+      "source": "tests/test_real2sim_sweep.py",
+      "destination": "tests/test_real2sim_sweep.py",
+      "source_sha256": "75706cbcf21720a3e1f74e3e23e7ab670aa0d6d45826f502feaf024bcf276743",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "47216fe149f64837b0754684eefca4c0a572f1dccc1f13160a7d20e03cb28c72"
+    },
+    {
+      "source": "configs/real2sim/default.yaml",
+      "destination": "configs/real2sim/default.yaml",
+      "source_sha256": "775d8115f157f24be4615a4464ce15f3d7728841588dc34001b3a4a05541fe85",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "775d8115f157f24be4615a4464ce15f3d7728841588dc34001b3a4a05541fe85"
+    },
+    {
+      "source": "configs/real2sim/s1.yaml",
+      "destination": "configs/real2sim/s1.yaml",
+      "source_sha256": "0ca448e59bad2342d4269c25b347c25847f0a45ad3434ee99cb0aee5a5aa2468",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "0ca448e59bad2342d4269c25b347c25847f0a45ad3434ee99cb0aee5a5aa2468"
+    },
+    {
+      "source": "docs/REAL2SIM.md",
+      "destination": "docs/REAL2SIM.md",
+      "source_sha256": "7a80c857565b1c30053657f8b54e9cac81d665b09f8f2a1063e87027a87147c8",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "99592b226e2c42d70322d486456b9755fd2d06e9c4b17bb7a5e8c1eb94753f8a"
+    },
+    {
+      "source": "docs/REAL2SIM_GEOMETRY.md",
+      "destination": "docs/REAL2SIM_GEOMETRY.md",
+      "source_sha256": "bef14ad7a8af1eecc5018069480aa7923d7b33afb5a5b59a7b4541299815b15a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "bef14ad7a8af1eecc5018069480aa7923d7b33afb5a5b59a7b4541299815b15a"
+    },
+    {
+      "source": "docs/J2.png",
+      "destination": "docs/J2.png",
+      "source_sha256": "816b24d833d8f17723421f80d851960fc73dfa74976f81e81b0a3a2ae77b396f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "816b24d833d8f17723421f80d851960fc73dfa74976f81e81b0a3a2ae77b396f"
+    },
+    {
+      "source": "docs/J3.png",
+      "destination": "docs/J3.png",
+      "source_sha256": "7c04eff39dd68184498ea450f07ac916c9ade2f28470555d4390e44e7eae9f0c",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "7c04eff39dd68184498ea450f07ac916c9ade2f28470555d4390e44e7eae9f0c"
+    },
+    {
+      "source": "docs/S1手指-V3.2.STEP",
+      "destination": "docs/S1手指-V3.2.STEP",
+      "source_sha256": "34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7"
+    },
+    {
+      "source": "docs/cad/attachment_sections.json",
+      "destination": "docs/cad/attachment_sections.json",
+      "source_sha256": "a91423a786d8627d8071faaa3689a9fb30c5c09b0882c1b53cc2db325762076d",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "a91423a786d8627d8071faaa3689a9fb30c5c09b0882c1b53cc2db325762076d"
+    },
+    {
+      "source": "docs/cad/base_guide_sections.json",
+      "destination": "docs/cad/base_guide_sections.json",
+      "source_sha256": "ff5f8f973e9f3ac4660e39cec6a7e199ab2448a2310187adb31b36d7e35e5609",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "ff5f8f973e9f3ac4660e39cec6a7e199ab2448a2310187adb31b36d7e35e5609"
+    },
+    {
+      "source": "docs/cad/finger_sections.json",
+      "destination": "docs/cad/finger_sections.json",
+      "source_sha256": "9f55e81e12eb428023284ab33a962031ad0978e5e64d9dbeac948dd3b6b7e09f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "9f55e81e12eb428023284ab33a962031ad0978e5e64d9dbeac948dd3b6b7e09f"
+    },
+    {
+      "source": "docs/cad/finger_step_inspection.json",
+      "destination": "docs/cad/finger_step_inspection.json",
+      "source_sha256": "2b5e192e5f9fa31524747a42f90e3914c509ef0058be2f89dfedeb399b25491f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "2b5e192e5f9fa31524747a42f90e3914c509ef0058be2f89dfedeb399b25491f"
+    },
+    {
+      "source": "docs/cad/selected_entities.json",
+      "destination": "docs/cad/selected_entities.json",
+      "source_sha256": "2c730da8e0e679d9475e4f273f92f32aa214eca515745a68216ce887783fcb57",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "2c730da8e0e679d9475e4f273f92f32aa214eca515745a68216ce887783fcb57"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "LICENSE",
+      "source_sha256": "c407dc57125a6aced77e0d26f6928d8f7cbee47ecb9ecdad4e80faa971b7726a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "c407dc57125a6aced77e0d26f6928d8f7cbee47ecb9ecdad4e80faa971b7726a"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/assets/data/hand/boya.usda",
+      "destination": "src/botyard_real2sim/assets/data/hand/boya.usda",
+      "source_sha256": "0ea8142909df5712d7fb2bf5be551565d049414ce5bcaac3a3ebf94b72ace844",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "0ea8142909df5712d7fb2bf5be551565d049414ce5bcaac3a3ebf94b72ace844"
+    },
+    {
+      "source": "src/dexterous_hand_manipulation/tasks/inhand_manipulation/config/botyard_dexhand_v3_2/boya_hand_cfg.py",
+      "destination": "src/botyard_real2sim/simulation/hand_cfg.py",
+      "source_sha256": "4e53b3892488b492df3f39f86bd69187320dc60cb38d6675d9a98716e0db3c26",
+      "adapted_for_extraction": true,
+      "extracted_sha256": "aaeacbd6c91267c65dfb4e0d06b6627b92923056b785848748b65d5cde705285"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2.csv",
+      "destination": "examples/reference_runs/dynamic/j2.csv",
+      "source_sha256": "86d6da3d128f31e52c36d7b0dc30c192124a3ed9c720aeefc4210709fe081612",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "86d6da3d128f31e52c36d7b0dc30c192124a3ed9c720aeefc4210709fe081612"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2.metadata.json",
+      "destination": "examples/reference_runs/dynamic/j2.metadata.json",
+      "source_sha256": "9312589e0ae444595600a0c7dde6e9778937e0e55fae5b4684f439fbdd73d53a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "9312589e0ae444595600a0c7dde6e9778937e0e55fae5b4684f439fbdd73d53a"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2.params.yaml",
+      "destination": "examples/reference_runs/dynamic/j2.params.yaml",
+      "source_sha256": "150c10657a7ed846386710b8ee6b54bb0d0472ca1170cd19fd7efc2656ccedf6",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "150c10657a7ed846386710b8ee6b54bb0d0472ca1170cd19fd7efc2656ccedf6"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2.validation.json",
+      "destination": "examples/reference_runs/dynamic/j2.validation.json",
+      "source_sha256": "6579d6ec3c5f4906ce59ef6c0b3fddbca57ffafa154eecef71efda3f54c4f9c3",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "6579d6ec3c5f4906ce59ef6c0b3fddbca57ffafa154eecef71efda3f54c4f9c3"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_curves.html",
+      "destination": "examples/reference_runs/dynamic/j2_curves.html",
+      "source_sha256": "80164809656a97cdf276e3ac5457606aee3c539d7175a13eeb5d8de3f889918d",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "80164809656a97cdf276e3ac5457606aee3c539d7175a13eeb5d8de3f889918d"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_curves.json",
+      "destination": "examples/reference_runs/dynamic/j2_curves.json",
+      "source_sha256": "88dbc5c30f95904d78d39250b872154472ddff29fb22f0a273d3f6b755771c35",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "88dbc5c30f95904d78d39250b872154472ddff29fb22f0a273d3f6b755771c35"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_curves.png",
+      "destination": "examples/reference_runs/dynamic/j2_curves.png",
+      "source_sha256": "97faf9959e35544c977297529ae1963374f15e1c2787e56453e7c10b532bcaa3",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "97faf9959e35544c977297529ae1963374f15e1c2787e56453e7c10b532bcaa3"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_routing.html",
+      "destination": "examples/reference_runs/dynamic/j2_routing.html",
+      "source_sha256": "5a5a79bba6d10c940337eee085171ce67a1649084cb5626a01dde5ee11937a6e",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "5a5a79bba6d10c940337eee085171ce67a1649084cb5626a01dde5ee11937a6e"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_routing.json",
+      "destination": "examples/reference_runs/dynamic/j2_routing.json",
+      "source_sha256": "d57f7c9ed85281f59e916cc0e4c17fdfe81b728fb90566837a461f65a856d1df",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d57f7c9ed85281f59e916cc0e4c17fdfe81b728fb90566837a461f65a856d1df"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_routing.png",
+      "destination": "examples/reference_runs/dynamic/j2_routing.png",
+      "source_sha256": "1b90d2e615d6440b8ce678acea986c206d92d75877c331baa7045db60a568929",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "1b90d2e615d6440b8ce678acea986c206d92d75877c331baa7045db60a568929"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_states.html",
+      "destination": "examples/reference_runs/dynamic/j2_states.html",
+      "source_sha256": "7fa1bf22100b7193c898b01c33be9ef6599365d85fa468368c634e888e9f2ab7",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "7fa1bf22100b7193c898b01c33be9ef6599365d85fa468368c634e888e9f2ab7"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/j2_states.json",
+      "destination": "examples/reference_runs/dynamic/j2_states.json",
+      "source_sha256": "70a280128295058b8ec08334d0fd88b78b02648ed40599e65df448c87056e717",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "70a280128295058b8ec08334d0fd88b78b02648ed40599e65df448c87056e717"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal.csv",
+      "destination": "examples/reference_runs/dynamic/reversal.csv",
+      "source_sha256": "e69aae4b3a0ea02738027e41a2ef43a9b373fd5f24ca295c44b7cb3001507db0",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "e69aae4b3a0ea02738027e41a2ef43a9b373fd5f24ca295c44b7cb3001507db0"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal.metadata.json",
+      "destination": "examples/reference_runs/dynamic/reversal.metadata.json",
+      "source_sha256": "c8da1bdca5b8da33aefcbed6bfea992571720d162fb9ca95d5d6008c0e93d4d1",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "c8da1bdca5b8da33aefcbed6bfea992571720d162fb9ca95d5d6008c0e93d4d1"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal.params.yaml",
+      "destination": "examples/reference_runs/dynamic/reversal.params.yaml",
+      "source_sha256": "150c10657a7ed846386710b8ee6b54bb0d0472ca1170cd19fd7efc2656ccedf6",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "150c10657a7ed846386710b8ee6b54bb0d0472ca1170cd19fd7efc2656ccedf6"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal.validation.json",
+      "destination": "examples/reference_runs/dynamic/reversal.validation.json",
+      "source_sha256": "a6c9924d4e6905fc5d6eb45d9297b7eb1f89a3cc746790441bbf27e0c578d67f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "a6c9924d4e6905fc5d6eb45d9297b7eb1f89a3cc746790441bbf27e0c578d67f"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_commands.csv",
+      "destination": "examples/reference_runs/dynamic/reversal_commands.csv",
+      "source_sha256": "a4f8b14c6afc1cd31b98aaa8f91fb0d666f1e1cac8c2188a626a5b46ed3e5b58",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "a4f8b14c6afc1cd31b98aaa8f91fb0d666f1e1cac8c2188a626a5b46ed3e5b58"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_curves.html",
+      "destination": "examples/reference_runs/dynamic/reversal_curves.html",
+      "source_sha256": "954f18a25888762b7ddc9252a54134cfa18babe661985e6ae838024b95f83e66",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "954f18a25888762b7ddc9252a54134cfa18babe661985e6ae838024b95f83e66"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_curves.json",
+      "destination": "examples/reference_runs/dynamic/reversal_curves.json",
+      "source_sha256": "f6f1e46042dd747b4ffef312197415bf57dcc2df662fe4709f6c140a4c213580",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "f6f1e46042dd747b4ffef312197415bf57dcc2df662fe4709f6c140a4c213580"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_curves.png",
+      "destination": "examples/reference_runs/dynamic/reversal_curves.png",
+      "source_sha256": "81b1ad6086c44b0c97c23307e49a4165165671901fef76fa68a3e22f65cecaf4",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "81b1ad6086c44b0c97c23307e49a4165165671901fef76fa68a3e22f65cecaf4"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_routing.html",
+      "destination": "examples/reference_runs/dynamic/reversal_routing.html",
+      "source_sha256": "529b3a67a1e7f273b5dc96e0109cc5a5ddccbb98960a3f5f1f9d25dbb6c306db",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "529b3a67a1e7f273b5dc96e0109cc5a5ddccbb98960a3f5f1f9d25dbb6c306db"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/reversal_routing.json",
+      "destination": "examples/reference_runs/dynamic/reversal_routing.json",
+      "source_sha256": "6679eddf42161d1aedbc1e17545305d623ec17b063491b6157d459053eaa2587",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "6679eddf42161d1aedbc1e17545305d623ec17b063491b6157d459053eaa2587"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/step_size_probe.json",
+      "destination": "examples/reference_runs/dynamic/step_size_probe.json",
+      "source_sha256": "c632522d97a591de7cad5111abb2432976cdadb54f1ded4ecf4d519932127b25",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "c632522d97a591de7cad5111abb2432976cdadb54f1ded4ecf4d519932127b25"
+    },
+    {
+      "source": "logs/real2sim_dynamic_validation/step_size_probe.png",
+      "destination": "examples/reference_runs/dynamic/step_size_probe.png",
+      "source_sha256": "67a0440691477f85857693525c0bd08150f4f5657aeb8f91a66286531c849edb",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "67a0440691477f85857693525c0bd08150f4f5657aeb8f91a66286531c849edb"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.csv",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.csv",
+      "source_sha256": "bc1d2f1524b5e9ae4718e2baa4f3c4cd6c26620fa3487519174a9cc702c63b48",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "bc1d2f1524b5e9ae4718e2baa4f3c4cd6c26620fa3487519174a9cc702c63b48"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.html",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.html",
+      "source_sha256": "65ad998da76ad8d9d8c145b31e15ad52a35ef06e2624b7a0601cee9844f738fd",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "65ad998da76ad8d9d8c145b31e15ad52a35ef06e2624b7a0601cee9844f738fd"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.json",
+      "source_sha256": "d72e63208548909c4d58118a15907528a158158b18de4cfabf1e0a005eb8ae20",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d72e63208548909c4d58118a15907528a158158b18de4cfabf1e0a005eb8ae20"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.metadata.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.metadata.json",
+      "source_sha256": "e4df30a4129ac4d337c2cb98ea237e6ffaa96f135745140b2adf129b4b2dfcdc",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "e4df30a4129ac4d337c2cb98ea237e6ffaa96f135745140b2adf129b4b2dfcdc"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.params.yaml",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.params.yaml",
+      "source_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2.png",
+      "destination": "examples/reference_runs/quasistatic/finger_j2.png",
+      "source_sha256": "a6b48382a5d4b33d1860037e76b6048504edfd6484859f541ef4f6b3cf5368f5",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "a6b48382a5d4b33d1860037e76b6048504edfd6484859f541ef4f6b3cf5368f5"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.csv",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.csv",
+      "source_sha256": "d12d0005e853938ab8597f3eeeedd7e16a34aacfdd0ef94be334081c55fe03fd",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d12d0005e853938ab8597f3eeeedd7e16a34aacfdd0ef94be334081c55fe03fd"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.html",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.html",
+      "source_sha256": "f9501eb4acd9e54672639da6eca124dd975b0549ba8114f7531a02486103f9fd",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "f9501eb4acd9e54672639da6eca124dd975b0549ba8114f7531a02486103f9fd"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.json",
+      "source_sha256": "7f92b00fa1bd3635f9084875ae2c9329e914ec39ad92d438adc01c4296b8984f",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "7f92b00fa1bd3635f9084875ae2c9329e914ec39ad92d438adc01c4296b8984f"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.metadata.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.metadata.json",
+      "source_sha256": "37d9df6371aadfcf59c6b11c246fdd65b617d32e0fdd662083863adeb753f30d",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "37d9df6371aadfcf59c6b11c246fdd65b617d32e0fdd662083863adeb753f30d"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.params.yaml",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.params.yaml",
+      "source_sha256": "f5677291955127425afbb334fff8c60a518ca20a219eda9d2a77a52073b90578",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "f5677291955127425afbb334fff8c60a518ca20a219eda9d2a77a52073b90578"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j2_final.png",
+      "destination": "examples/reference_runs/quasistatic/finger_j2_final.png",
+      "source_sha256": "d4d4ad8719c5436805c1c4e94ee29486bf2f5bf0d05020ac16f1aa3df0a65082",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d4d4ad8719c5436805c1c4e94ee29486bf2f5bf0d05020ac16f1aa3df0a65082"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j3.csv",
+      "destination": "examples/reference_runs/quasistatic/finger_j3.csv",
+      "source_sha256": "be187a8015f92386dba87693c6699fe391e6d81404f2d809e36b38d4cb08266a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "be187a8015f92386dba87693c6699fe391e6d81404f2d809e36b38d4cb08266a"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j3.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j3.json",
+      "source_sha256": "d62d31df434cae445078c089e77ae7a6bb657c0aa17616c798624daf95edf96a",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "d62d31df434cae445078c089e77ae7a6bb657c0aa17616c798624daf95edf96a"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j3.metadata.json",
+      "destination": "examples/reference_runs/quasistatic/finger_j3.metadata.json",
+      "source_sha256": "ffaf37ed3cea075dba87a502b9375eff7288f56835ccde4a5d027274e2bda0d1",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "ffaf37ed3cea075dba87a502b9375eff7288f56835ccde4a5d027274e2bda0d1"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j3.params.yaml",
+      "destination": "examples/reference_runs/quasistatic/finger_j3.params.yaml",
+      "source_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/finger_j3.png",
+      "destination": "examples/reference_runs/quasistatic/finger_j3.png",
+      "source_sha256": "3349455afe8bfa95944830f406b680ba1b24d60e1cf1cd10fc71716d21e020af",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "3349455afe8bfa95944830f406b680ba1b24d60e1cf1cd10fc71716d21e020af"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/replayed.csv",
+      "destination": "examples/reference_runs/quasistatic/replayed.csv",
+      "source_sha256": "b7b1e4bcb7a4396cc6a675b96c8fb8d84053aeb50821af8a7b896f3302de44de",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "b7b1e4bcb7a4396cc6a675b96c8fb8d84053aeb50821af8a7b896f3302de44de"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/replayed.metadata.json",
+      "destination": "examples/reference_runs/quasistatic/replayed.metadata.json",
+      "source_sha256": "0e0f9446bd453af098ac06345e2d1890b2820ec23f2abe9e477faaed7bb9b30e",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "0e0f9446bd453af098ac06345e2d1890b2820ec23f2abe9e477faaed7bb9b30e"
+    },
+    {
+      "source": "logs/real2sim_s1_validation/replayed.params.yaml",
+      "destination": "examples/reference_runs/quasistatic/replayed.params.yaml",
+      "source_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041",
+      "adapted_for_extraction": false,
+      "extracted_sha256": "e3b4961b2be6f01518a21398dfea7a838e17aa1d41dcb30831fa623767490041"
+    }
+  ],
+  "adaptations": [
+    "Python package renamed to botyard_real2sim; independent copies, no links to the source repository.",
+    "CLI implementations moved into the package; scripts remain convenient source-checkout launchers.",
+    "Hand articulation config copied locally; minimal equivalent PhysX config replaces RL environment imports.",
+    "Default presets included in built distributions; editable source config takes precedence.",
+    "Historical CAD artifact URIs and archived run metadata kept verbatim as provenance."
+  ],
+  "additional_source_inputs": [
+    {
+      "source": "src/dexterous_hand_manipulation/tasks/inhand_manipulation/config/botyard_dexhand_v3_2/env_cfg.py",
+      "sha256": "c6b5500fda4990f882b0a5053a59ea36bcf1026901264be3cef487f3d1653b85",
+      "extracted_part": "PhysX solver settings only, in simulation/physics.py"
+    }
+  ],
+  "created_files": [
+    {
+      "path": ".gitignore",
+      "sha256": "11d0f0cc3f0294746939e72c2adc09a7930946204f6eba99811efc6488b3913c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7267d980cea99b5c487e1fc085bb42ab2af381a9ef4203ab40f2ecbf92e4aee2"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "09b0c195be8f01bb996a2c36f40fa071d95fa853d8ccbda697a2bb9d500eda43"
+    },
+    {
+      "path": "run.sh",
+      "sha256": "d62a250a95736be22b1209a65b5d6c4a6e5b975fb1c8b4b796b1a84a4b6d9aac"
+    },
+    {
+      "path": "tests/test_standalone_project.py",
+      "sha256": "d776d93cc553df9ec6e3a08eff0481b5743151b464494943ec2ca59b0aa4914d"
+    },
+    {
+      "path": "src/botyard_real2sim/paths.py",
+      "sha256": "502607aee89070dc07eb503a1aa2de9aea10919c41069828634dd3b9dfe2abca"
+    },
+    {
+      "path": "src/botyard_real2sim/cli/__init__.py",
+      "sha256": "e01578a75f7e86a2022e852c96a0ab01494aab0edcc30a26d6c8a8be5c430af7"
+    },
+    {
+      "path": "src/botyard_real2sim/simulation/__init__.py",
+      "sha256": "877609aa21c7f55ac95e6fb2e4162771fea878266c71d2c1b6fc30fc1bcc8ec4"
+    },
+    {
+      "path": "src/botyard_real2sim/simulation/physics.py",
+      "sha256": "32f7a85d4a5923a9916c8c9391371b66cb30e7a9f4f1dfb631f83b7ba1cdb472"
+    },
+    {
+      "path": "src/botyard_real2sim/assets/__init__.py",
+      "sha256": "b17c076077e23f71cb09b05d99a6165de5b3564b6aa1a264cb0fcc629a88bd23"
+    },
+    {
+      "path": "docs/EXTRACTION.md",
+      "sha256": "45e28b68bb9aa9071018a069042bede0c985ef711ba0d640deafba9a1703242a"
+    },
+    {
+      "path": "examples/commands/finger_reversal.csv",
+      "sha256": "3378533a9d70bd2bf18441fa2624e67941ee86f322ba2472b2da50bbf7589ed9"
+    },
+    {
+      "path": "scripts/real2sim_curves.py",
+      "sha256": "583689394c4d1a10eddb32cc9ca93d8cf229652fbee60184001436c3bd1f10b6"
+    },
+    {
+      "path": "scripts/real2sim_replay.py",
+      "sha256": "33f7f79e9b9c993981a6a19e555e0ca745e4a55bd6e6f64630bac1bd41582f58"
+    },
+    {
+      "path": "scripts/real2sim_sweep.py",
+      "sha256": "4c3f26d8b7d60b63348d54d4fb6bdab8d867362188e1e07e6376bfa5f8406436"
+    }
+  ],
+  "source_integrity": {
+    "source_directory": "/home/cyj/dexterous_hand_manipulation",
+    "snapshot_file_count": 148,
+    "changed_files": [],
+    "git_index_unchanged": true,
+    "source_status_unchanged": true
+  }
+}

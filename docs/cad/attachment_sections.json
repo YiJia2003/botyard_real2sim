@@ -1,0 +1,253 @@
+{
+  "artifact": {
+    "revision": "sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7",
+    "uri": "file:///home/cyj/dexterous_hand_manipulation/docs/S1%E6%89%8B%E6%8C%87-V3.2.STEP",
+    "format": "step",
+    "units": "mm"
+  },
+  "unit_note": "Lengths are in mm.",
+  "entity_id_scheme": {
+    "authority": "cad-mcp-server",
+    "idScheme": "occt-topology-v1"
+  },
+  "coordinate_frame": {
+    "id": "step-model",
+    "origin": [
+      0,
+      0,
+      0
+    ],
+    "axes": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "handedness": "right",
+    "units": "mm"
+  },
+  "subjects": [
+    {
+      "type": "geometry",
+      "entity": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1",
+        "id": "body:193",
+        "kind": "body"
+      }
+    },
+    {
+      "type": "geometry",
+      "entity": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1",
+        "id": "body:192",
+        "kind": "body"
+      }
+    },
+    {
+      "type": "geometry",
+      "entity": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1",
+        "id": "body:194",
+        "kind": "body"
+      }
+    },
+    {
+      "type": "geometry",
+      "entity": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1",
+        "id": "body:60",
+        "kind": "body"
+      }
+    },
+    {
+      "type": "geometry",
+      "entity": {
+        "authority": "cad-mcp-server",
+        "idScheme": "occt-topology-v1",
+        "id": "body:103",
+        "kind": "body"
+      }
+    }
+  ],
+  "kind": "section",
+  "units": {
+    "length": "mm",
+    "area": "mm2",
+    "volume": "mm3",
+    "angle": "deg",
+    "curvature": "mm-1"
+  },
+  "entity_count": 5,
+  "results": [
+    {
+      "entity_id": "body:193",
+      "results": {
+        "section_by_plane": {
+          "edge_count": 20,
+          "edges": [
+            {
+              "bbox": {
+                "max": [
+                  2.494246249491295,
+                  -3.4999999999999996,
+                  36.11053160122636
+                ],
+                "min": [
+                  -1.354202935981311,
+                  -3.5000000000000004,
+                  33.346832963853174
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:9",
+              "length": 6.283185307179589
+            },
+            {
+              "bbox": {
+                "max": [
+                  2.342695434963899,
+                  -3.4999999999999996,
+                  34.87423023859955
+                ],
+                "min": [
+                  -1.5057537505087066,
+                  -3.5000000000000004,
+                  32.11053160122636
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:10",
+              "length": 6.283185307179587
+            }
+          ],
+          "total_length": 16.96961569298902
+        }
+      }
+    },
+    {
+      "entity_id": "body:192",
+      "results": {
+        "section_by_plane": {
+          "edge_count": 2,
+          "edges": [
+            {
+              "bbox": {
+                "max": [
+                  7.056144327246823,
+                  -3.5,
+                  39.80394461383268
+                ],
+                "min": [
+                  5.95066487229755,
+                  -3.5,
+                  38.264564939643634
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:0",
+              "length": 2.513274122871835
+            },
+            {
+              "bbox": {
+                "max": [
+                  6.561623782196097,
+                  -3.5,
+                  39.86456493964363
+                ],
+                "min": [
+                  5.4561443272468235,
+                  -3.5,
+                  38.325185265454586
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:1",
+              "length": 2.513274122871836
+            }
+          ],
+          "total_length": 5.026548245743671
+        }
+      }
+    },
+    {
+      "entity_id": "body:194",
+      "results": {
+        "section_by_plane": {
+          "edge_count": 0,
+          "edges": [],
+          "total_length": 0
+        }
+      }
+    },
+    {
+      "entity_id": "body:60",
+      "results": {
+        "section_by_plane": {
+          "edge_count": 0,
+          "edges": [],
+          "total_length": 0
+        }
+      }
+    },
+    {
+      "entity_id": "body:103",
+      "results": {
+        "section_by_plane": {
+          "edge_count": 2,
+          "edges": [
+            {
+              "bbox": {
+                "max": [
+                  1.2510774342496855,
+                  -3.5,
+                  49.86571636295497
+                ],
+                "min": [
+                  -0.15001863564402373,
+                  -3.5,
+                  48.74346119808957
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:0",
+              "length": 2.3561944901923457
+            },
+            {
+              "bbox": {
+                "max": [
+                  1.3499813643559766,
+                  -3.5,
+                  49.48797152782037
+                ],
+                "min": [
+                  -0.05111470553773245,
+                  -3.5,
+                  48.36571636295497
+                ]
+              },
+              "curve_type": "circle",
+              "id": "section-edge:1",
+              "length": 2.356194490192345
+            }
+          ],
+          "total_length": 4.712388980384691
+        }
+      }
+    }
+  ]
+}

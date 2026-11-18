@@ -1,0 +1,966 @@
+controller:
+  kp_deg_s_per_deg:
+  - 15.0
+  - 10.0
+  - 20.0
+  - 10.0
+  - 20.0
+  - 10.0
+  - 20.0
+  - 10.0
+  - 20.0
+  - 10.0
+  ki_deg_s_per_deg_step:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  kd_deg_s_per_deg_step:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  min_angle_deg:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  max_angle_deg:
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  - 89.5
+  dead_zone_deg:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  integral_region_deg: 2.0
+  integral_limit_deg_s: 10.0
+  default_speed_deg_s: 120.0
+  speed_cap_deg_s: 360.0
+  output_cap_mrad_s: 7000.0
+  control_period_s: 0.003
+  firmware_time_delta_s: 0.002
+  angle_feedback_resolution_deg: 0.01
+  quantize_angle_feedback: true
+  quantize_output: true
+  startup_pair_evaluations: 0
+tendon:
+  joint_moment_arm_m:
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  drum_radius_m:
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  crossing_moment_arm_m:
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  - 0.005
+  cable_stiffness_n_per_m:
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  - 8000.0
+  cable_damping_n_s_per_m:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  cable_slack_m:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  initial_tension_n:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  tendon_speed_lag_s:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  motor_zero_angle_rad:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  motor_encoder_sign:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  routing_spring_stiffness_n_per_m:
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  routing_spring_free_length_m:
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  routing_spring_max_length_m:
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  - 0.023
+  routing_model: dynamic
+  routing_mass_kg:
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  routing_proximal_compliance_fraction:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  routing_friction_mu_static:
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  routing_friction_mu_dynamic:
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  - 0.15
+  routing_bristle_stiffness_n_per_m:
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  - 2000.0
+  routing_viscous_friction_n_s_per_m:
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  routing_stribeck_speed_m_s:
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  routing_normal_preload_n:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  routing_wrap_base_rad:
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  - 0.25
+  routing_wrap_contact_gain_rad:
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  - 1.5
+  routing_contact_baseline:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  routing_contact_tension_gain:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  routing_contact_extension_gain:
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  routing_contact_path_gain:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  routing_contact_tension_scale_n:
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  - 5.0
+  routing_contact_path_scale_m:
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  routing_contact_load_tau_s:
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  routing_contact_release_tau_s:
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  - 0.08
+  routing_max_substep_s: 0.0001
+  return_spring_stiffness_n_per_m:
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  - 1000.0
+  return_spring_free_length_m:
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.02
+  return_spring_initial_tension_n:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  return_tether_length_m:
+  - 0.017
+  - 0.017
+  - 0.017
+  - 0.019
+  - 0.017
+  - 0.019
+  - 0.017
+  - 0.019
+  - 0.017
+  - 0.019
+  return_path_length_offset_m:
+  - 0.0
+  - 0.0
+  - 0.001
+  - 0.0066010540655341635
+  - 0.001
+  - 0.0066010540655341635
+  - 0.001
+  - 0.0066010540655341635
+  - 0.001
+  - 0.0066010540655341635
+  geometry:
+    index:
+      centers_m:
+      - - 0.0
+        - 0.0
+      - - -0.000499999577329705
+        - 0.04500052882190407
+      - - -0.00049999957732972
+        - 0.07000052882190405
+      distal_mimic_ratio: 1.0
+      provenance: S1 STEP sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7;
+        see docs/REAL2SIM_GEOMETRY.md. Frames/topology inferred from J2.png/J3.png;
+        not calibrated.
+      tendons:
+        first:
+        - frame: base
+          point_m:
+          - 0.0063
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: 1
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0045000004226702596
+          - 0.05399311430820362
+          radius_m: 0.002
+          winding: 1
+        - frame: middle
+          point_m:
+          - -0.00049999957732972
+          - 0.07000052882190405
+          radius_m: 0.005
+          winding: -1
+        - frame: distal
+          point_m:
+          - 0.00625
+          - 0.08098999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.0035
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0005
+          - -0.009100000000000233
+          radius_m: 0.002
+          winding: 1
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: proximal
+          point_m:
+          - 0.0004942462494912942
+          - 0.03410052882190406
+      returns:
+        first:
+        - frame: proximal
+          point_m:
+          - 0.0075
+          - 0.0029899972206776943
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: 1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0075
+          - 0.04298999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.00891670250438506
+          - 0.0027529823692677485
+        - frame: proximal
+          point_m:
+          - 0.006256144327246823
+          - 0.03905456216032133
+    middle:
+      centers_m:
+      - - 0.0
+        - 0.0
+      - - -0.000499999577329705
+        - 0.04500052882190407
+      - - -0.00049999957732972
+        - 0.07000052882190405
+      distal_mimic_ratio: 1.0
+      provenance: S1 STEP sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7;
+        see docs/REAL2SIM_GEOMETRY.md. Frames/topology inferred from J2.png/J3.png;
+        not calibrated.
+      tendons:
+        first:
+        - frame: base
+          point_m:
+          - 0.0063
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: 1
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0045000004226702596
+          - 0.05399311430820362
+          radius_m: 0.002
+          winding: 1
+        - frame: middle
+          point_m:
+          - -0.00049999957732972
+          - 0.07000052882190405
+          radius_m: 0.005
+          winding: -1
+        - frame: distal
+          point_m:
+          - 0.00625
+          - 0.08098999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.0035
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0005
+          - -0.009100000000000233
+          radius_m: 0.002
+          winding: 1
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: proximal
+          point_m:
+          - 0.0004942462494912942
+          - 0.03410052882190406
+      returns:
+        first:
+        - frame: proximal
+          point_m:
+          - 0.0075
+          - 0.0029899972206776943
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: 1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0075
+          - 0.04298999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.00891670250438506
+          - 0.0027529823692677485
+        - frame: proximal
+          point_m:
+          - 0.006256144327246823
+          - 0.03905456216032133
+    ring:
+      centers_m:
+      - - 0.0
+        - 0.0
+      - - -0.000499999577329705
+        - 0.04500052882190407
+      - - -0.00049999957732972
+        - 0.07000052882190405
+      distal_mimic_ratio: 1.0
+      provenance: S1 STEP sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7;
+        see docs/REAL2SIM_GEOMETRY.md. Frames/topology inferred from J2.png/J3.png;
+        not calibrated.
+      tendons:
+        first:
+        - frame: base
+          point_m:
+          - 0.0063
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: 1
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0045000004226702596
+          - 0.05399311430820362
+          radius_m: 0.002
+          winding: 1
+        - frame: middle
+          point_m:
+          - -0.00049999957732972
+          - 0.07000052882190405
+          radius_m: 0.005
+          winding: -1
+        - frame: distal
+          point_m:
+          - 0.00625
+          - 0.08098999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.0035
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0005
+          - -0.009100000000000233
+          radius_m: 0.002
+          winding: 1
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: proximal
+          point_m:
+          - 0.0004942462494912942
+          - 0.03410052882190406
+      returns:
+        first:
+        - frame: proximal
+          point_m:
+          - 0.0075
+          - 0.0029899972206776943
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: 1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0075
+          - 0.04298999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.00891670250438506
+          - 0.0027529823692677485
+        - frame: proximal
+          point_m:
+          - 0.006256144327246823
+          - 0.03905456216032133
+    little:
+      centers_m:
+      - - 0.0
+        - 0.0
+      - - -0.000499999577329705
+        - 0.04500052882190407
+      - - -0.00049999957732972
+        - 0.07000052882190405
+      distal_mimic_ratio: 1.0
+      provenance: S1 STEP sha256:34a46bdc8ed93c6e918df4d2936297cf187681ac224042b214863bd0dd0c86c7;
+        see docs/REAL2SIM_GEOMETRY.md. Frames/topology inferred from J2.png/J3.png;
+        not calibrated.
+      tendons:
+        first:
+        - frame: base
+          point_m:
+          - 0.0063
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: 1
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0045000004226702596
+          - 0.05399311430820362
+          radius_m: 0.002
+          winding: 1
+        - frame: middle
+          point_m:
+          - -0.00049999957732972
+          - 0.07000052882190405
+          radius_m: 0.005
+          winding: -1
+        - frame: distal
+          point_m:
+          - 0.00625
+          - 0.08098999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.0035
+          - -0.027010002779322306
+        - frame: base
+          point_m:
+          - 0.0005
+          - -0.009100000000000233
+          radius_m: 0.002
+          winding: 1
+        - frame: base
+          point_m:
+          - 0.0
+          - 0.0
+          radius_m: 0.005
+          winding: -1
+          detachable: true
+        - frame: proximal
+          point_m:
+          - 0.0004942462494912942
+          - 0.03410052882190406
+      returns:
+        first:
+        - frame: proximal
+          point_m:
+          - 0.0075
+          - 0.0029899972206776943
+        - frame: proximal
+          point_m:
+          - -0.000499999577329705
+          - 0.04500052882190407
+          radius_m: 0.005
+          winding: 1
+          detachable: true
+        - frame: middle
+          point_m:
+          - 0.0075
+          - 0.04298999722067769
+        second:
+        - frame: base
+          point_m:
+          - 0.00891670250438506
+          - 0.0027529823692677485
+        - frame: proximal
+          point_m:
+          - 0.006256144327246823
+          - 0.03905456216032133
+  spring_rest_angle_rad:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  spring_stiffness_nm_per_rad:
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  spring_preload_nm:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  viscous_friction_nm_s_per_rad:
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  - 0.001
+  coulomb_friction_nm:
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  static_friction_nm:
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  - 0.002
+  stribeck_speed_rad_s:
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  - 0.05
+  friction_smoothing_speed_rad_s:
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  crossing_guide_mu:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  crossing_wrap_angle_rad:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  guide_slip_smoothing_m_s: 0.0001
+curves:
+  tension_raw_to_N: 0.01
+  real_tension_bias_N: 0.0
+  alignment: command_edge
+  alignment_threshold_rad: 0.008726646259971648
+  alignment_joint: null
+  sim_shift_s: 0.0
+  steady_window_s: 0.5
+  max_interp_gap_s: 0.1
+  fallback_only: false
+  show_tension_command: false
+  title: S1 unloaded real2sim — geometry-informed, not calibrated

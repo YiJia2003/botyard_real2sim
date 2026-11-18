@@ -1,0 +1,112 @@
+# 空载 real2sim 起始配置；不是实机标定结果。
+# 已知：电机侧和关节侧滑轮半径为 5 mm。
+# crossing 的 +5 mm 是待验证的带符号路径假设；其他力学参数均是可运行初值。
+# 10 关节顺序：THJ1 THJ2 FFJ2 FFJ3 MFJ2 MFJ3 RFJ2 RFJ3 LFJ2 LFJ3。
+# 5 手指名称：thumb index middle ring little。
+# 向量字段接受标量、完整数组，或 {default: 值, 关节/手指名称: 覆盖值}。
+
+# 【中文】这是**旧常力臂模型**的快照（准静态、常量力臂、无几何路径）。
+# 只有显式传 `--config configs/real2sim/default.yaml` 才使用它，用于复现旧实验；
+# scripts/real2sim_replay.py 未指定 --config 时默认读取 s1.yaml。
+# 与 s1.yaml 的差别：这里没有 tendon.geometry、没有 routing_* 走线动力学参数，
+# 也没有电机编码器零位与回位弹簧参数，因此未列出的字段取 config.py 的类默认值
+# （例如 routing_model 默认 "quasistatic"、return_spring_stiffness_n_per_m 默认
+# 1000 N/m），此时近端与远端张力相等、没有走线摩擦历史状态。
+# 单位：长度 m、角度 rad、角速度 rad/s、刚度 N/m 或 N·m/rad、阻尼 N·s/m 或
+# N·m·s/rad、摩擦 N·m；controller 段沿用固件的 deg、deg/s、mrad/s。
+
+# ── 控制器：固件 Fallback_pidControl 位置环 ──
+controller:
+  # 当前源码 Fallback 分支参数；上机固件版本不同必须重新核对。
+  # 比例增益 (deg/s)/deg：具名部分覆盖，未列出的关节取 default: 20.0。
+  kp_deg_s_per_deg: {default: 20.0, THJ1: 15.0, THJ2: 10.0, FFJ3: 10.0, MFJ3: 10.0, RFJ3: 10.0, LFJ3: 10.0}
+  # 积分增益 (deg/s)/(deg·step)：按控制步累加角误差，标量广播到 10 个关节。
+  ki_deg_s_per_deg_step: 1.0
+  # 微分增益；0.0 表示该分支不启用微分作用。
+  kd_deg_s_per_deg_step: 0.0
+  # 目标角限幅 deg（0.5–89.5 deg），避开关节机械端点。
+  min_angle_deg: 0.5
+  max_angle_deg: 89.5
+  # 死区 deg：|角误差| 小于该值时误差清零并复位积分。
+  dead_zone_deg: 1.0
+  # 积分分离区 deg（仅在该误差范围内累加积分）与积分项限幅 deg/s。
+  integral_region_deg: 2.0
+  integral_limit_deg_s: 10.0
+  # 默认最大速度 deg/s（指令速度无效时回退）与指令速度上限 deg/s。
+  default_speed_deg_s: 120.0
+  speed_cap_deg_s: 360.0
+  # 电机内环速度请求限幅 mrad/s。
+  output_cap_mrad_s: 7000.0
+  # 控制周期 s：0.003 s = 定时器 ARR=2999 计满 3000 个 µs。
+  control_period_s: 0.003
+  # 固件状态估计中整数截断的 2 ms 时间量 s；只是记录，不能当调度周期。
+  firmware_time_delta_s: 0.002
+  # 角度反馈量化步长 deg（模拟编码器分辨率）。
+  angle_feedback_resolution_deg: 0.01
+  # 是否量化角度反馈 / 输出（按固件 int 截断规则）。
+  quantize_angle_feedback: true
+  quantize_output: true
+  # 冷启动前每个手指等待的评估次数；0 = 热启动。
+  startup_pair_evaluations: 0
+
+# ── 腱绳：常量力臂、材料绳与关节摩擦（无几何路径、无走线动力学）──
+tendon:
+  # 常量关节力臂 m：5 mm（旧模型与拇指走这条路径）。
+  joint_moment_arm_m: 0.005
+  # 电机绕线轮半径 m（不是直径）：5 mm。
+  drum_radius_m: 0.005
+  # 可为负值；正号须根据实测运动方向与穿绳路径确认。
+  crossing_moment_arm_m: {default: 0.005}
+  # 材料绳等效刚度 N/m。
+  cable_stiffness_n_per_m: {default: 8000.0}
+  # 材料绳阻尼 N·s/m。本预设为 0；准静态分支配非静止初态时不支持非零阻尼。
+  cable_damping_n_s_per_m: 0.0
+  # 起始松弛间隙。同一根绳不能同时配置正间隙和正初始张力。
+  cable_slack_m: 0.0
+  # 初始张力 N（此处为 0，即从无预紧状态开始）。
+  initial_tension_n: 0.0
+  # 等效绳端速度响应延迟；0 为理想速度端口，不建立电机模型。
+  tendon_speed_lag_s: 0.0
+  # 关节扭转弹簧静止角 rad 与扭转刚度 N·m/rad。
+  spring_rest_angle_rad: 0.0
+  spring_stiffness_nm_per_rad: {default: 0.01}
+  # 弹簧预紧力矩 N·m。
+  spring_preload_nm: 0.0
+  # 关节黏性摩擦 N·m·s/rad 与 Coulomb 摩擦幅值 N·m。
+  viscous_friction_nm_s_per_rad: 0.001
+  coulomb_friction_nm: 0.002
+  # 平滑 Stribeck 低速摩擦幅值，不是真正静止保持力。
+  static_friction_nm: 0.002
+  # Stribeck 特征角速度 rad/s 与摩擦低速平滑角速度 rad/s。
+  stribeck_speed_rad_s: 0.05
+  friction_smoothing_speed_rad_s: 0.01
+  # 保留兼容字段；非零 mu 会报错，不能启用未经验证的导向损失模型。
+  crossing_guide_mu: 0.0
+  # 跨关节导向包角 rad（预留字段，当前模型不使用）。
+  crossing_wrap_angle_rad: 0.0
+  # 导向件滑移平滑速度 m/s（预留字段，仅做正性校验）。
+  guide_slip_smoothing_m_s: 0.0001
+
+# ── 曲线、对齐与绘图选项（不影响物理，只用于回放对比与作图）──
+curves:
+  # 当前源码刻度约定；必须与采集时实际固件/ROS 驱动一致。
+  tension_raw_to_N: 0.01
+  # 实测张力偏置 N。
+  real_tension_bias_N: 0.0
+  # 对齐方式：command_edge = 以指令阶跃前沿对齐。
+  alignment: command_edge
+  # 指令沿判定阈值 rad（0.008726646259971648 rad = 0.5 deg）。
+  alignment_threshold_rad: 0.008726646259971648
+  # 对齐关节；null = 在所有选中关节里找最早的指令跳变。
+  alignment_joint: null
+  # 仿真曲线整体时移 s（实机曲线不平移）。
+  sim_shift_s: 0.0
+  # 稳态窗口长度 s（取均值与误差统计）与插值允许的最大缺失间隔 s。
+  steady_window_s: 0.5
+  max_interp_gap_s: 0.1
+  # 只使用 is_fallback 为真的区间（false = 不过滤）。
+  fallback_only: false
+  # 指令第三字段默认不画，避免压缩实际张力曲线尺度。
+  show_tension_command: false
+  # 图标题：明确标注参数仍是临时值。
+  title: Unloaded hand real2sim — provisional parameters

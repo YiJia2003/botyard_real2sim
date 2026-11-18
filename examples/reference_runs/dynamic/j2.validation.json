@@ -1,0 +1,87 @@
+{
+  "source": "logs/real2sim_dynamic_validation/j2.csv",
+  "samples": 401,
+  "calibrated": false,
+  "channels": {
+    "THJ1": {
+      "max_tension_difference_N": 2.6066223313137016e-07,
+      "max_energy_residual_J": 5.589397467785647e-32,
+      "max_solver_residual_N": 1.3818052132698327e-21,
+      "max_length_balance_error_m": 3.2311742677852644e-27,
+      "final_motor_tension_N": 2.016071531940611e-09,
+      "final_distal_tension_N": 0.0
+    },
+    "THJ2": {
+      "max_tension_difference_N": 2.073212783670897e-07,
+      "max_energy_residual_J": 1.0093671414945874e-31,
+      "max_solver_residual_N": 2.5212465070616284e-21,
+      "max_length_balance_error_m": 6.462348535570529e-27,
+      "final_motor_tension_N": 1.779972946813757e-09,
+      "final_distal_tension_N": 0.0
+    },
+    "FFJ2": {
+      "max_tension_difference_N": 1.4875305891036987,
+      "max_energy_residual_J": 4.1886752006125514e-17,
+      "max_solver_residual_N": 2.2448709557920665e-13,
+      "max_length_balance_error_m": 2.168404344971009e-19,
+      "final_motor_tension_N": 6.962219715118408,
+      "final_distal_tension_N": 5.570425033569336
+    },
+    "FFJ3": {
+      "max_tension_difference_N": 4.745642399939243e-06,
+      "max_energy_residual_J": 1.245678367631918e-28,
+      "max_solver_residual_N": 8.79193729470362e-20,
+      "max_length_balance_error_m": 8.271806125530277e-25,
+      "final_motor_tension_N": 1.8304755045051024e-08,
+      "final_distal_tension_N": 0.0
+    },
+    "MFJ2": {
+      "max_tension_difference_N": 6.72627891162847e-08,
+      "max_energy_residual_J": 1.1126911774067067e-33,
+      "max_solver_residual_N": 1.646089418980525e-22,
+      "max_length_balance_error_m": 4.0389678347315804e-28,
+      "final_motor_tension_N": 1.060296815624806e-11,
+      "final_distal_tension_N": 0.0
+    },
+    "MFJ3": {
+      "max_tension_difference_N": 1.7607399058761075e-05,
+      "max_energy_residual_J": 7.190791670285152e-28,
+      "max_solver_residual_N": 1.5339237279183345e-19,
+      "max_length_balance_error_m": 1.0339757656912846e-25,
+      "final_motor_tension_N": 0.0,
+      "final_distal_tension_N": 6.08347469621684e-11
+    },
+    "RFJ2": {
+      "max_tension_difference_N": 4.7066826880381996e-08,
+      "max_energy_residual_J": 6.06100315647326e-34,
+      "max_solver_residual_N": 9.946846865950158e-23,
+      "max_length_balance_error_m": 1.0097419586828951e-28,
+      "final_motor_tension_N": 7.111759098288317e-12,
+      "final_distal_tension_N": 0.0
+    },
+    "RFJ3": {
+      "max_tension_difference_N": 1.7101458070101216e-05,
+      "max_energy_residual_J": 2.387831982221946e-28,
+      "max_solver_residual_N": 6.919200387883566e-20,
+      "max_length_balance_error_m": 4.1359030627651384e-25,
+      "final_motor_tension_N": 0.0,
+      "final_distal_tension_N": 6.441936567513906e-11
+    },
+    "LFJ2": {
+      "max_tension_difference_N": 3.0631451153340095e-08,
+      "max_energy_residual_J": 2.93652195283209e-34,
+      "max_solver_residual_N": 7.52992851364678e-23,
+      "max_length_balance_error_m": 5.048709793414476e-29,
+      "final_motor_tension_N": 4.099831151654909e-12,
+      "final_distal_tension_N": 0.0
+    },
+    "LFJ3": {
+      "max_tension_difference_N": 1.658501787460409e-05,
+      "max_energy_residual_J": 7.029164740457258e-28,
+      "max_solver_residual_N": 1.108951416413091e-19,
+      "max_length_balance_error_m": 8.271806125530277e-25,
+      "final_motor_tension_N": 8.438262160412671e-14,
+      "final_distal_tension_N": 4.814326715063544e-11
+    }
+  }
+}

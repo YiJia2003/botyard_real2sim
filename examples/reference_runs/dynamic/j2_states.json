@@ -1,0 +1,38 @@
+{
+  "real_csv": null,
+  "sim_csv": "logs/real2sim_dynamic_validation/j2.csv",
+  "options": {
+    "tension_raw_to_N": 0.01,
+    "alignment": "command_edge",
+    "alignment_threshold_rad": 0.008726646259971648,
+    "alignment_joint": null,
+    "sim_shift_s": 0.0,
+    "steady_window_s": 0.5,
+    "max_interp_gap_s": 0.1,
+    "title": "Empty-hand real2sim",
+    "real_tension_bias_N": 0.0,
+    "fallback_only": false,
+    "show_tension_command": false,
+    "channels": [
+      "routing_friction_proximal",
+      "routing_friction_distal",
+      "routing_bristle_proximal",
+      "routing_bristle_distal",
+      "routing_kinetic",
+      "routing_dissipation",
+      "routing_numerical_dissipation"
+    ],
+    "derive_kinematics": false
+  },
+  "error_convention": "sim minus real; steady_* measures the final configured window, not detected settling",
+  "tension_command_semantics": "third command field; not enforced by Fallback",
+  "anchor_s_from_first_row": {
+    "sim": 0.051000000000000004
+  },
+  "joints": {},
+  "motor_angle_semantics": "unwrapped winding-spool angle; no automatic zero subtraction or joint substitution",
+  "derived_kinematics": null,
+  "missing_motor_columns": {
+    "sim": []
+  }
+}
