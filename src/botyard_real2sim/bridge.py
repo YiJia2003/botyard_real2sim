@@ -543,8 +543,11 @@ def _task_record(
                     "separate": {
                         "default": True,
                         "required_fields": [
-                            "profile", "center_deg or center_rad", "amplitude_deg or amplitude_rad",
-                            "speed_cap_deg_s or speed_limit_rad_s", "duration_s",
+                            "profile",
+                            "center_deg or center_rad",
+                            "amplitude_deg or amplitude_rad",
+                            "speed_cap_deg_s or speed_limit_rad_s",
+                            "duration_s",
                         ],
                         "intent_fields": ["directions", "dwell_s"],
                         "semantics": "One local run per joint; profile stages determine executed direction and dwell.",
@@ -553,13 +556,20 @@ def _task_record(
                         "required_fields": ["execution_mode", "pair_plan"],
                         "pair_plan_schema": "real2sim-pair-plan-v1",
                         "joint_order": ["MFJ2", "MFJ3"],
-                        "semantics": "Both joint targets and independent speed caps are encoded in each point; the hardware host validates and executes the plan.",
+                        "semantics": (
+                            "Both joint targets and independent speed caps are encoded in each point; "
+                            "the hardware host validates and executes the plan."
+                        ),
                     },
                 },
                 "semantic_request": {
                     "optional_fields": ["requested_conditions", "local_preparation_required"],
                     "local_preparation_required": True,
-                    "semantics": "If a full trajectory is unavailable, describe required observations and conditions. The local agent must prepare and validate an executable request before plan-requests; the remote agent does not need embedding_ws.",
+                    "semantics": (
+                        "If a full trajectory is unavailable, describe required observations and conditions. "
+                        "The local agent must prepare and validate an executable request before plan-requests; "
+                        "the remote agent does not need embedding_ws."
+                    ),
                 },
             },
         },

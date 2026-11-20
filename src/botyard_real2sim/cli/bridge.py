@@ -497,9 +497,7 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
         joints = experiment.get("joints") or ([experiment["joint"]] if experiment.get("joint") else [])
         if not joints:
             raise BridgeError(f"experiments[{index}] needs joints")
-        execution_mode = experiment.get(
-            "execution_mode", "paired" if "pair_plan" in experiment else "separate"
-        )
+        execution_mode = experiment.get("execution_mode", "paired" if "pair_plan" in experiment else "separate")
         if execution_mode not in ("separate", "paired"):
             raise BridgeError(f"experiments[{index}] has unsupported execution_mode")
         if execution_mode == "separate" and "pair_plan" in experiment:
@@ -528,20 +526,42 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
                     repeated_plan = copy.deepcopy(pair_plan)
                     metadata = repeated_plan.setdefault("metadata", {})
                     source_id = str(metadata.get("experiment_id") or slug)
-                    metadata.update(experiment_id=f"{source_id}-r{repeat + 1:02d}",
-                                    repeat=repeat + 1, source_experiment_id=source_id)
+                    metadata.update(
+                        experiment_id=f"{source_id}-r{repeat + 1:02d}",
+                        repeat=repeat + 1,
+                        source_experiment_id=source_id,
+                    )
                     plan_path = (out_dir / f"pair-plan-{index}-{slug}-r{repeat + 1:02d}.json").resolve()
                     bridge.write_json_atomic(plan_path, repeated_plan)
                 out = out_dir / f"{slug}_middle_pair_r{repeat + 1}"
-                command = ["python3", "tools/r2s_pair_run.py", "--plan", str(plan_path),
-                           "--out", str(out), "--effort-raw", str(int(effort_raw))]
-                lines.extend(["# Paired payload: validate and dry-run locally before execution.",
-                              " ".join(bridge.shlex.quote(part) for part in command), ""])
-                plan.append({"execution_mode": "paired", "joints": list(joints),
-                             "pair_plan": str(plan_path), "repeat": repeat + 1,
-                             "source_pair_plan": str(source_plan_path),
-                             "output": str(out),
-                             "execute": "local pair runner validates bounds, controller and both joints before --execute"})
+                command = [
+                    "python3",
+                    "tools/r2s_pair_run.py",
+                    "--plan",
+                    str(plan_path),
+                    "--out",
+                    str(out),
+                    "--effort-raw",
+                    str(int(effort_raw)),
+                ]
+                lines.extend(
+                    [
+                        "# Paired payload: validate and dry-run locally before execution.",
+                        " ".join(bridge.shlex.quote(part) for part in command),
+                        "",
+                    ]
+                )
+                plan.append(
+                    {
+                        "execution_mode": "paired",
+                        "joints": list(joints),
+                        "pair_plan": str(plan_path),
+                        "repeat": repeat + 1,
+                        "source_pair_plan": str(source_plan_path),
+                        "output": str(out),
+                        "execute": "local pair runner validates bounds, controller and both joints before --execute",
+                    }
+                )
             continue
         profile = str(experiment.get("profile") or "step")
         center_deg = experiment.get("center_deg")

@@ -155,8 +155,12 @@ def test_export_capture_to_bundle(tmp_path):
 def test_generated_task_separates_remote_requests_from_local_paired_execution(tmp_path):
     fixture = _write_capture(tmp_path / "capture")
     report = bridge.export_capture(
-        fixture["root"], meta_path=fixture["meta"], out_root=tmp_path / "experiment",
-        bundle_id="r2s-task-contract", joints=("MFJ2", "MFJ3"), split="train",
+        fixture["root"],
+        meta_path=fixture["meta"],
+        out_root=tmp_path / "experiment",
+        bundle_id="r2s-task-contract",
+        joints=("MFJ2", "MFJ3"),
+        split="train",
         tolerances={"angle_deg": 2.0, "motor_angle_deg": 3.0, "tension_N": 1.0},
     )
     task = json.loads((Path(report["bundle_dir"]) / "TASK.json").read_text())
@@ -178,9 +182,12 @@ def test_generated_task_separates_remote_requests_from_local_paired_execution(tm
 @pytest.mark.parametrize("intent", ["transport_selftest", "calibration"])
 def test_remote_prompt_uses_concrete_remote_staging_without_requiring_local_workspace(intent):
     prompt = bridge.build_remote_task_prompt(
-        bundle_id="r2s-prompt", remote_bundle_dir="/srv/sim/real2sim/experiment/r2s-prompt",
-        remote_result_dir="/srv/sim/real2sim/results/r2s-prompt", intent=intent,
-        split="train", tolerances={"angle_deg": 2, "motor_angle_deg": 3, "tension_N": 1},
+        bundle_id="r2s-prompt",
+        remote_bundle_dir="/srv/sim/real2sim/experiment/r2s-prompt",
+        remote_result_dir="/srv/sim/real2sim/results/r2s-prompt",
+        intent=intent,
+        split="train",
+        tolerances={"angle_deg": 2, "motor_angle_deg": 3, "tension_N": 1},
     )
     assert "/srv/sim/real2sim/results/.staging/r2s-prompt.partial" in prompt
     assert "<bundle_id>" not in prompt
@@ -307,15 +314,36 @@ def test_paired_request_preserves_one_atomic_command_and_plan(tmp_path):
         "joint_order": ["MFJ2", "MFJ3"],
         "metadata": {"experiment_id": "joint-grid-1", "family": "joint_grid", "split": "train"},
         "points": [
-            {"offset_ns": 0, "phase": "start", "positions_rad": [0.2, 0.3],
-             "speed_limits_rad_s": [math.radians(15), math.radians(360)]},
-            {"offset_ns": 1000000000, "phase": "end", "positions_rad": [0.4, 0.5],
-             "speed_limits_rad_s": [math.radians(15), math.radians(360)]},
+            {
+                "offset_ns": 0,
+                "phase": "start",
+                "positions_rad": [0.2, 0.3],
+                "speed_limits_rad_s": [math.radians(15), math.radians(360)],
+            },
+            {
+                "offset_ns": 1000000000,
+                "phase": "end",
+                "positions_rad": [0.4, 0.5],
+                "speed_limits_rad_s": [math.radians(15), math.radians(360)],
+            },
         ],
     }
     request = tmp_path / "request.json"
-    request.write_text(json.dumps({"experiments": [{"id": "joint-grid-1", "joints": ["MFJ2", "MFJ3"],
-                        "execution_mode": "paired", "pair_plan": pair_plan, "repeats": 2}]}))
+    request.write_text(
+        json.dumps(
+            {
+                "experiments": [
+                    {
+                        "id": "joint-grid-1",
+                        "joints": ["MFJ2", "MFJ3"],
+                        "execution_mode": "paired",
+                        "pair_plan": pair_plan,
+                        "repeats": 2,
+                    }
+                ]
+            }
+        )
+    )
     record = _plan_requests(request, tmp_path / "out", r2s_root=tmp_path / "embedding", effort_raw=500)
     lines = [line for line in Path(record["script"]).read_text().splitlines() if line.startswith("python3 ")]
     assert len(lines) == 2  # one paired message per repeat, never two single-joint commands
@@ -326,18 +354,24 @@ def test_paired_request_preserves_one_atomic_command_and_plan(tmp_path):
         assert command[command.index("--effort-raw") + 1] == "500"
         saved = json.loads(Path(command[command.index("--plan") + 1]).read_text())
         assert saved["points"] == pair_plan["points"]
-        assert saved["metadata"] == {**pair_plan["metadata"],
-            "experiment_id": f"joint-grid-1-r{repeat:02d}", "repeat": repeat,
-            "source_experiment_id": "joint-grid-1"}
+        assert saved["metadata"] == {
+            **pair_plan["metadata"],
+            "experiment_id": f"joint-grid-1-r{repeat:02d}",
+            "repeat": repeat,
+            "source_experiment_id": "joint-grid-1",
+        }
     assert all(item["execution_mode"] == "paired" for item in record["plan"])
     assert json.loads(Path(record["plan"][0]["source_pair_plan"]).read_text()) == pair_plan
 
 
-@pytest.mark.parametrize("patch", [
-    {"execution_mode": "paired"},
-    {"execution_mode": "paired", "pair_plan": {"schema": "wrong"}},
-    {"execution_mode": "unknown"},
-])
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"execution_mode": "paired"},
+        {"execution_mode": "paired", "pair_plan": {"schema": "wrong"}},
+        {"execution_mode": "unknown"},
+    ],
+)
 def test_request_never_silently_downgrades_invalid_paired_plan(tmp_path, patch):
     request = tmp_path / "request.json"
     request.write_text(json.dumps({"experiments": [{"joints": ["MFJ2", "MFJ3"], **patch}]}))
@@ -372,10 +406,14 @@ def test_pair_payload_implies_paired_mode_but_forbids_separate_override(tmp_path
 @pytest.mark.parametrize("mode", ["separate", "paired"])
 def test_semantic_requests_require_local_preparation_before_any_plan_output(tmp_path, mode):
     request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
-    semantic = {"id": "requested-state", "joints": ["MFJ2", "MFJ3"],
-                "execution_mode": mode, "local_preparation_required": True,
-                "requested_conditions": {"target_deg": [45, 45], "joint_speed_deg_s": [30, -60]},
-                "purpose": "A missing coupled state needs local trajectory design"}
+    semantic = {
+        "id": "requested-state",
+        "joints": ["MFJ2", "MFJ3"],
+        "execution_mode": mode,
+        "local_preparation_required": True,
+        "requested_conditions": {"target_deg": [45, 45], "joint_speed_deg_s": [30, -60]},
+        "purpose": "A missing coupled state needs local trajectory design",
+    }
     request["experiments"].append(semantic)  # Do not even emit the earlier valid paired payload.
     path = tmp_path / "request.json"
     path.write_text(json.dumps(request))
@@ -386,7 +424,9 @@ def test_semantic_requests_require_local_preparation_before_any_plan_output(tmp_
 
 
 @pytest.mark.parametrize("mode", ["separate", "paired"])
-def test_relative_request_output_stays_at_requested_location_after_script_changes_directory(tmp_path, monkeypatch, mode):
+def test_relative_request_output_stays_at_requested_location_after_script_changes_directory(
+    tmp_path, monkeypatch, mode
+):
     monkeypatch.chdir(tmp_path)
     workspace = tmp_path / "hardware workspace"
     (workspace / "tools").mkdir(parents=True)
@@ -402,11 +442,15 @@ args.out.mkdir(parents=True, exist_ok=False)
     if mode == "paired":
         request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
     else:
-        request = {"experiments": [{"id": "hold", "joints": ["MFJ2"], "profile": "hold",
-                                    "center_deg": 20, "speed_cap_deg_s": 15}]}
+        request = {
+            "experiments": [
+                {"id": "hold", "joints": ["MFJ2"], "profile": "hold", "center_deg": 20, "speed_cap_deg_s": 15}
+            ]
+        }
     Path("request.json").write_text(json.dumps(request))
-    record = _plan_requests(Path("request.json"), Path("output plans"),
-                            r2s_root=Path("hardware workspace"), effort_raw=500)
+    record = _plan_requests(
+        Path("request.json"), Path("output plans"), r2s_root=Path("hardware workspace"), effort_raw=500
+    )
     other_cwd = tmp_path / "another caller"
     other_cwd.mkdir()
     result = subprocess.run(["bash", str(record["script"])], cwd=other_cwd, capture_output=True, text=True)

@@ -155,6 +155,7 @@ def run_fit(
     min_samples: int = 100,
     min_coverage: float = 0.8,
     min_overlap_s: float = 0.5,
+    alignment: str = "command_edge",
     physics_dt: float = 0.0001,
     sample_dt: float = 0.003,
     device: str = "cuda:0",
@@ -179,6 +180,8 @@ def run_fit(
         raise ValueError("invalid minimum sample or coverage gate")
     if not math.isfinite(min_overlap_s) or min_overlap_s <= 0:
         raise ValueError("min_overlap_s must be positive and finite")
+    if alignment not in {"command_edge", "start"}:
+        raise ValueError("alignment must be command_edge or start")
     if not math.isfinite(physics_dt) or physics_dt <= 0 or not math.isfinite(sample_dt) or sample_dt <= 0:
         raise ValueError("physics_dt and sample_dt must be positive and finite")
     if not math.isfinite(timeout_s) or timeout_s <= 0:
@@ -268,6 +271,7 @@ def run_fit(
                 min_samples=min_samples,
                 min_coverage=min_coverage,
                 min_overlap_s=min_overlap_s,
+                alignment=alignment,
             )
         except (OSError, ValueError, json.JSONDecodeError) as error:
             result["reasons"].append(f"evaluation failed: {type(error).__name__}: {error}")
@@ -398,6 +402,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-samples", type=int, default=100)
     parser.add_argument("--min-coverage", type=float, default=0.8)
     parser.add_argument("--min-overlap-s", type=float, default=0.5)
+    parser.add_argument("--align", choices=("command_edge", "start"), default="command_edge")
     parser.add_argument("--physics-dt", type=float, default=0.0001)
     parser.add_argument("--sample-dt", type=float, default=0.003)
     parser.add_argument("--device", default="cuda:0")
@@ -426,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
             min_samples=args.min_samples,
             min_coverage=args.min_coverage,
             min_overlap_s=args.min_overlap_s,
+            alignment=args.align,
             physics_dt=args.physics_dt,
             sample_dt=args.sample_dt,
             device=args.device,
