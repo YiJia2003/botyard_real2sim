@@ -8,3 +8,6 @@ build/
 dist/
 logs/
 .vscode/
+
+# runtime experiment data and generated bridge copy
+/real2sim/

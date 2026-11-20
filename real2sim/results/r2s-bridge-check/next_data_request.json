@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "protocol": "botyard-real2sim-bridge/v1",
-  "bundle_id": "r2s-bridge-check",
-  "status": "none",
-  "generated_at_utc": "2026-11-20T08:10:12Z",
-  "reason": "Transport self-test only; the bridge is verified and no additional recording is needed for this bundle.",
-  "experiments": []
-}
