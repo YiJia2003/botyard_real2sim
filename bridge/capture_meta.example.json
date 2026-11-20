@@ -36,7 +36,7 @@
   },
   "quality_gates": {
     "max_sensor_skew_s": 0.002,
-    "max_sensor_skew_source": "REPLACE: sensor timing spec / r2s_align residual / experiment decision",
+    "max_sensor_skew_source": "REPLACE: measured transport bias, clock mapping and sensor acquisition-age budget",
     "min_samples": 50,
     "min_duration_s": 0.5,
     "min_channel_coverage": 0.8,

@@ -41,7 +41,7 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 BRIDGE_PROTOCOL = "botyard-real2sim-bridge/v1"
@@ -513,8 +513,8 @@ def _task_record(
         "tolerances": {key: float(value) for key, value in tolerances.items()},
         "remote": {
             "read_only_experiment": True,
-            "result_dir": f"results/{bundle_id}",
-            "staging_dir": f"results/.staging/{bundle_id}.partial",
+            "result_dir": f"real2sim/results/{bundle_id}",
+            "staging_dir": f"real2sim/results/.staging/{bundle_id}.partial",
             "publish_with": "real2sim/bridge/remote_publish_result.py",
             "ready_marker": "RESULT_READY.json",
             "next_data_request": "next_data_request.json",
@@ -536,17 +536,31 @@ def _task_record(
                 "experiment_fields": [
                     "id",
                     "joints",
-                    "profile",
-                    "center_deg or center_rad",
-                    "amplitude_deg or amplitude_rad",
-                    "speed_cap_deg_s or speed_limit_rad_s",
-                    "duration_s",
-                    "frequency_hz",
-                    "directions",
-                    "dwell_s",
                     "repeats",
                     "purpose",
                 ],
+                "execution_modes": {
+                    "separate": {
+                        "default": True,
+                        "required_fields": [
+                            "profile", "center_deg or center_rad", "amplitude_deg or amplitude_rad",
+                            "speed_cap_deg_s or speed_limit_rad_s", "duration_s",
+                        ],
+                        "intent_fields": ["directions", "dwell_s"],
+                        "semantics": "One local run per joint; profile stages determine executed direction and dwell.",
+                    },
+                    "paired": {
+                        "required_fields": ["execution_mode", "pair_plan"],
+                        "pair_plan_schema": "real2sim-pair-plan-v1",
+                        "joint_order": ["MFJ2", "MFJ3"],
+                        "semantics": "Both joint targets and independent speed caps are encoded in each point; the hardware host validates and executes the plan.",
+                    },
+                },
+                "semantic_request": {
+                    "optional_fields": ["requested_conditions", "local_preparation_required"],
+                    "local_preparation_required": True,
+                    "semantics": "If a full trajectory is unavailable, describe required observations and conditions. The local agent must prepare and validate an executable request before plan-requests; the remote agent does not need embedding_ws.",
+                },
             },
         },
         "notes": notes,
@@ -956,14 +970,17 @@ def export_capture(
     notes: str = "",
     data_kind: str = "hardware",
 ) -> dict[str, Any]:
-    """Convert an ``embedding_ws/tools/r2s_run.py`` capture into a bridge bundle.
+    """Convert legacy host-aligned capture tables into a bridge bundle.
 
     Required raw files: ``samples.csv``, ``commands.csv``,
-    ``board_samples_aligned.csv`` (or ``boards.csv`` for diagnostics) and
-    ``metadata.json``.  The canonical CSV uses host ``CLOCK_MONOTONIC_RAW``
-    nanoseconds.  Board samples are linearly interpolated only at the host
-    sample/event grid, within ``max_interpolation_gap_s``; raw files are kept
-    under ``raw/`` and their hashes are recorded.
+    ``board_samples_aligned.csv`` and a separate capture metadata file.
+    Board timestamps must already be in host ``CLOCK_MONOTONIC_RAW``
+    nanoseconds. The source's alignment producer, clock mapping and sensor-age
+    evidence require independent qualification; this exporter does not infer
+    or verify them. Current SWD RAM recordings require a separate adapter.
+    The canonical grid combines host samples and command events, with
+    ``max_interpolation_gap_s`` passed to the interpolation helper. Raw source
+    files are kept under ``raw/`` and their hashes are recorded.
     """
 
     ensure_bundle_id(bundle_id)
@@ -1186,10 +1203,13 @@ def export_capture(
     source_sha = combined_sha256(raw_order)
     max_skew = max(board_skews) if board_skews else 0.0
     sensor_sync_method = (
-        "board_samples_aligned.csv timestamps already mapped to host CLOCK_MONOTONIC_RAW by "
-        "embedding_ws/tools/r2s_align.py; canonical grid is the union of host samples and command "
-        "events; board motor/tension channels linearly interpolated only within "
-        f"{max_interpolation_gap_s:g}s, no extrapolation"
+        "Legacy host-aligned input: board_samples_aligned.csv timestamps are supplied in host "
+        "CLOCK_MONOTONIC_RAW; the source alignment producer is not inferred or verified by this "
+        "exporter. Source timing evidence declared by capture metadata: "
+        f"{_meta_get(meta, 'quality_gates.max_sensor_skew_source', 'unspecified')}. "
+        "Canonical grid is the union of host samples and command events; configured interpolation "
+        f"gap is {max_interpolation_gap_s:g}s, no extrapolation. Retained source evidence must "
+        "establish clock mapping, transport bias and sensor acquisition age independently."
     )
     source_recording_id = str(
         _meta_get(meta, "source_recording_id")
@@ -1827,6 +1847,7 @@ def build_remote_task_prompt(
     """Compose the stable instruction sent to the remote DSH session."""
 
     tolerance_text = ", ".join(f"{key}={value:g}" for key, value in tolerances.items())
+    remote_staging_dir = str(PurePosixPath(remote_result_dir).parent / ".staging" / f"{bundle_id}.partial")
     if intent == "transport_selftest":
         body = (
             "这是 **transport_selftest**：只验证数据桥，不要运行 PhysX、不要拟合、"
@@ -1834,7 +1855,7 @@ def build_remote_task_prompt(
             "请执行：\n"
             "1. 读取该目录的 READY.json、TASK.json、manifest.json、README.md；\n"
             "2. 复核 READY.json 与 SHA256SUMS（如与本消息不一致，立即停止并报告）；\n"
-            "3. 在 `results/.staging/<bundle_id>.partial/` 写 `RESULT.json`、`report.md`，\n"
+            f"3. 在 `{remote_staging_dir}/` 写 `RESULT.json`、`report.md`，\n"
             "   内容只需记录 transport 校验结论和 `next_data_request.json`（可为空请求）；\n"
             "4. 用 `real2sim/bridge/remote_publish_result.py` 原子发布；\n"
             "5. 最后用简短中文回复发布路径和校验结论。\n"
@@ -1846,7 +1867,7 @@ def build_remote_task_prompt(
             "并把 blocking_reasons 写入结果；\n"
             "2. 建立 baseline replay，并用 TASK.json 的显式容差跑 evaluate；\n"
             "3. 只有 TASK.json 要求时才在明确边界内 fit；不得从预设推断容差/边界；\n"
-            "4. 结果写入 `results/.staging/<bundle_id>.partial/`，必须包含 RESULT.json、report.md、\n"
+            f"4. 结果写入 `{remote_staging_dir}/`，必须包含 RESULT.json、report.md、\n"
             "   baseline/、evaluation.json、可选 fit/；若数据不足，写 next_data_request.json，\n"
             "   逐项列出需要的关节、幅度、速度、方向、停留、重复次数与目的；\n"
             "5. 用 `real2sim/bridge/remote_publish_result.py` 原子发布；\n"
@@ -1854,9 +1875,15 @@ def build_remote_task_prompt(
             "如果 split=train：只有对应的独立 validation bundle 已 ready 时才允许 fit；"
             "否则只做 baseline/evaluate/diagnose，并在 next_data_request 中申请独立 validation 录制。\n"
             "如果 split=validation/test：只做评估/对比，不得用它训练或拟合。\n"
-            "next_data_request.json 必须使用 `experiments` 数组，每项至少包含 id、joints、profile、\n"
-            "center_deg（或 center_rad）、amplitude_deg（或 amplitude_rad）、speed_cap_deg_s\n"
-            "（或 speed_limit_rad_s）、duration_s、directions、dwell_s、repeats、purpose。\n"
+            "next_data_request.json 使用 `experiments` 数组，共同字段为 id、joints、repeats、purpose。\n"
+            "单关节分开采集使用 execution_mode=separate（默认），另写 profile、center_deg/center_rad、\n"
+            "amplitude_deg/amplitude_rad、speed_cap_deg_s/speed_limit_rad_s、duration_s；\n"
+            "该模式的 directions/dwell_s 只描述意图，实际阶段由本机profile决定。\n"
+            "搭档定姿或同时运动使用 execution_mode=paired、joints=[MFJ2,MFJ3]，\n"
+            "并附 real2sim-pair-plan-v1 的完整 pair_plan；两关节目标、独立速度与停留写进points。\n"
+            "无法给出完整轨迹时，可用 purpose 和 requested_conditions 描述需要的状态、响应及原因，\n"
+            "标记 local_preparation_required=true，由本机agent补齐可执行计划后再调用plan-requests；\n"
+            "不要用两个独立run替代要求的同时运动。完整请求契约见项目docs/REAL2SIM_BRIDGE.md第7节。\n"
             "status 用 `needs_more_data` 或 `none`，不要用未定义的字段名。\n"
         )
     return (
@@ -1864,10 +1891,15 @@ def build_remote_task_prompt(
         f"bundle_id: {bundle_id}\n"
         f"intent: {intent}  split: {split}\n"
         f"只读数据目录: {remote_bundle_dir}\n"
-        f"结果目录: {remote_result_dir}\n"
+        f"最终结果目录（由发布器生成）: {remote_result_dir}\n"
+        f"结果暂存目录（agent写入）: {remote_staging_dir}\n"
         f"显式容差: {tolerance_text or '未提供（不得自行推断）'}\n"
         f"备注: {notes or '无'}\n\n"
         f"{body}\n"
-        "约束：experiment/ 目录只读；不要改动 READY.json、SHA256SUMS、manifest.json、capture.csv；"
+        "分工：你在远程运行botyard_real2sim，负责数据复核、仿真回放与曲线对比，"
+        "根据实测残差改进模型结构和参数，完成独立验证并返回结果与补采请求。\n"
+        "远程无需安装embedding_ws、ROS或访问烧录器；采集计划的生成、验证、烧录及实机执行由本机agent负责。\n"
+        "约束：real2sim/experiment/ 输入目录只读，模型、代码和参数按任务修改；"
+        "不要改动输入包的 READY.json、SHA256SUMS、manifest.json、capture.csv；"
         "不要用仿真 CSV 冒充实机数据；结果必须通过 remote_publish_result.py 发布。"
     )

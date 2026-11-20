@@ -1,17 +1,21 @@
 # real2sim 数据桥：本地采集 ↔ 远程仿真
 
-本文档定义真机侧（本机）与仿真侧（远程 `cyj@10.249.133.227`）之间的数据包、命令、结果和补采请求契约。它把 local 的 `experiment/`、远程的 `real2sim/experiment/` 与 `real2sim/results/` 串成可审计的闭环。
+本文档定义硬件主机与远程仿真主机（`cyj@10.249.133.227`）之间的数据包、任务、结果和补采请求契约。**硬件主机**负责真机控制和采集；**仿真主机**运行本仓库，由远程agent完成仿真、模型/参数优化与结果反馈。文中的“本机/本地”均指硬件主机，不随阅读位置变化。
 
 > 当前状态（2026-11-20）：SSH/Rsync 专用密钥、远程 staging→READY→原子改名、远程 DSH agent 通知、结果发布与回读均已实机联通。端到端自检见 [§12](#12-已验证记录)。
+
+**采集适用边界（2026-11-20）：** 硬件主机使用RS485 ROS控制和三板SWD RAM采样。`build-capture`仍仅接收旧host对齐输入；SWD到标准数据的适配、时间误差预算及源质量验收尚未完成，现有SWD记录只作诊断，不能直接标为`fit_ready`。H7本地微秒、主机纳秒和传感器采样时刻是不同概念。SSH/READY自检成功不能覆盖原始运行的失败或拟合限制。
+
+**远程阅读入口：** 本文及仓库内的[标定流程](AGENT_CALIBRATION.md)、[远程桥操作说明](../bridge/README.md)足以说明交接职责与格式。远程仓库无需同步`embedding_ws`、ROS工作区或本机端口配置。硬件主机的详细操作文档位于其`/home/botyard/real2sim/embedding_ws/docs/real2sim/`，只是采集端参考路径，不是远程依赖。
 
 ## 1. 拓扑与职责
 
 ```text
 本机 botyard（真机 / ROS2 / 烧录器）                远程 cyj-B760M（Isaac Lab / PhysX / RTX 4070）
 ┌─────────────────────────────────────┐            ┌────────────────────────────────────────┐
-│ embedding_ws/tools/r2s_run.py        │            │ botyard_real2sim 仿真与标定工具链        │
-│  采样/指令/板卡日志 + 时钟对齐        │            │  run.sh data/parameters/replay/          │
-│  ↓ 导出 canonical CSV + manifest     │            │           evaluate/curves/fit             │
+│ 单/双关节runner + 三板SWD采集器     │            │ botyard_real2sim 仿真与标定工具链        │
+│  三板SWD原始记录；适配/误差验收待完成 │            │  run.sh data/parameters/replay/          │
+│  ↓ 旧输入导出CSV；SWD适配尚未完成   │            │           evaluate/curves/fit             │
 │ experiment/<bundle_id>/               │  rsync     │ real2sim/experiment/<bundle_id>/         │
 │  capture.csv manifest.json TASK.json  │ ─────────▶ │   capture.csv manifest.json TASK.json    │
 │  BUNDLE.json SHA256SUMS README.md     │  staging   │   BUNDLE.json SHA256SUMS READY.json      │
@@ -19,7 +23,7 @@
 │                                       │  DSH API   │                                          │
 │                                       │ ─────────▶ │ 远程 DSH agent（botyard_real2sim 会话）  │
 │                                       │ 127.0.0.1  │   → baseline/evaluate/fit                │
-│                                       │ :3081      │   → results/.staging → RESULT_READY.json │
+│                                       │ :3081      │   → real2sim/results → RESULT_READY.json │
 │ experiment/<id>/results/              │ ◀───────── │ real2sim/results/<bundle_id>/            │
 │  （只读镜像，可选）                    │  ssh cat   │   RESULT.json report.md next_data_request│
 └─────────────────────────────────────┘            └────────────────────────────────────────┘
@@ -28,17 +32,17 @@
 | 环节 | 本机（真机侧） | 远程（仿真侧） |
 |---|---|---|
 | 激励与采集 | 改固件 / ROS2 控制 / 采 J2、J3、H7 数据 | 不接触硬件 |
-| 时间基准 | `CLOCK_MONOTONIC_RAW` 主机时钟；板卡经 `r2s_align.py` 映射 | 信任 manifest 的时钟与 skew 证据 |
-| 数据打包 | `build-capture` 生成 CSV/manifest/BUNDLE/SHA256SUMS | 只读 `experiment/`，不改包 |
+| 时间基准 | 主机 `CLOCK_MONOTONIC_RAW` 与三板本地原始计数分别保存；SWD诊断仅拟合 G4→H7 本地时间 | 按原始时轴/传输偏差/源年龄证据复核，不能仅信拟合残差 |
+| 数据打包 | 仅合格旧host对齐输入可由 `build-capture` 构建；SWD适配待完成 | 只读 `real2sim/experiment/`，不改输入包 |
 | 完整性 | 本地先校验，再上传 | 复核 SHA256、manifest/CSV 哈希、严格数据集校验 |
 | 发布 | rsync 到 `.staging/*.partial-*` | `remote_verify.py` 写 `READY.json` 后原子改名 |
 | 仿真/拟合 | 不跑 Isaac | 严格按 `TASK.json` 容差和项目流程执行 |
-| 结果 | 读取/按需拉取，不回传 | `remote_publish_result.py` 原子发布 |
+| 结果 | 读取或拉取远程结果，按反馈补采 | `remote_publish_result.py` 原子发布 |
 | 补采 | `plan-requests` 把远程请求转为激励命令计划 | 在 `next_data_request.json` 写清缺什么数据 |
 
 **硬边界：**
 - 本机不把仿真结果当真机证据；远程不把仿真 CSV 当实机数据。
-- `experiment/` 在远程是**只读**目录；结果只能写 `results/`。
+- 远程输入目录`real2sim/experiment/`只读，任务结果写`real2sim/results/`；模型、代码与参数文件仍可按任务修改。
 - 第三指令字段在 Fallback 中只是遥测，不是张力目标或上限。
 - 远程拟合的 `accepted=true` 仍只是曲线拟合候选，不是“物理模型已标定”。
 
@@ -57,7 +61,7 @@
       BUNDLE.json                # 文件表、manifest/csv 哈希
       SHA256SUMS                 # 含 BUNDLE.json 自身
       README.md
-      raw/                       # 可选：samples/commands/boards/clock_fit/...
+      raw/                       # 原始证据；旧输入形态见§9
     .staging/                    # 本地构建临时目录（成功后清空）
     .replaced/                   # 显式 --replace 时保留的旧包（审计）
     .bridge/state/<id>.json      # 发布/通知/最终消息的本地状态
@@ -93,6 +97,8 @@
     logs/                                  # 可选运行日志
 ```
 
+`bridge/`是版本控制中的脚本与模板源目录，`real2sim/bridge/`是远程运行副本。硬件主机执行`publish`时默认先同步该目录（除非指定`--no-sync-scripts`）；这不会同步模型源码或`docs/`。因此更新仓库代码后，仍应确认运行副本来自同一版本；需要立即更新时可单独同步`bridge/`到该运行目录。输入/结果目录是运行数据，不能用源码同步覆盖。
+
 ## 3. 数据包契约
 
 ### 3.1 文件
@@ -105,7 +111,7 @@
 | `BUNDLE.json` | 是 | 数据包记录：bundle_id、protocol、文件表、manifest/csv 哈希 |
 | `SHA256SUMS` | 是 | 所有 payload 文件 + `BUNDLE.json` 的 SHA-256 |
 | `README.md` | 是 | 人读摘要；不是证据 |
-| `raw/` | 建议 | 原始 `samples.csv`、`commands.csv`、`board_samples_aligned.csv`、`clock_fit.json`、`metadata.json` 等；发布时一并完整性校验 |
+| `raw/` | 建议 | 旧输入保留 samples/commands/board_samples_aligned/clock_fit/metadata；未来SWD adapter须保留三板BIN/JSONL、配置与质量报告及哈希，当前尚未实现 |
 | `READY.json` | 远程生成 | 远程校验通过后写入；**有它才是 ready 数据接口** |
 | `VERIFY_FAILED.json` | 失败时 | 远程校验失败原因，留在 staging 供排查 |
 
@@ -150,11 +156,12 @@
 
 可选：`velocity_rad_s`、`motor_velocity_rad_s`、`<joint>/command_seq`、原始 `effort_raw`。
 
-采集端从 `r2s_run.py` 原始目录导出时：
+**以下为旧 host 对齐输入的解析契约，不是当前 SWD 采集输出：**
+
 - 关节角/速度来自 `samples.csv`；
 - 电机角/张力来自 `board_samples_aligned.csv` 的 J2/J3 板（`module_position_rad` / `tension_N_from_firmware_scale`）；
 - 指令来自 `commands.csv` 的实际发布事件；
-- 板卡与主机时间已由 `r2s_align.py` 映射；桥只在 50 ms 内对指令时间点做线性插值，不外推，并把原始文件放 `raw/`；
+- 旧输入要求板卡时间已映射为主机纳秒。插值约定为最大50ms且不外推；当前导出器仍有ns/s阈值单位问题待修，不能据此段认定异步插值正确。原始文件保留在 `raw/`；
 - 第三字段默认按 `effort_raw × 0.01` 记为 `cmd_tension_N`；这个刻度是当前约定的**待固件复核值**，写在 manifest `provenance.third_field`。
 
 ### 3.4 `TASK.json`
@@ -172,8 +179,8 @@
   "tolerances": {"angle_deg": 2.0, "motor_angle_deg": 3.0, "tension_N": 1.0},
   "remote": {
     "read_only_experiment": true,
-    "result_dir": "results/<bundle_id>",
-    "staging_dir": "results/.staging/<bundle_id>.partial",
+    "result_dir": "real2sim/results/<bundle_id>",
+    "staging_dir": "real2sim/results/.staging/<bundle_id>.partial",
     "publish_with": "real2sim/bridge/remote_publish_result.py",
     "ready_marker": "RESULT_READY.json",
     "next_data_request": "next_data_request.json"
@@ -192,7 +199,7 @@
 ## 4. 生命周期（严格顺序）
 
 ```text
-① 采集 raw run
+① 采集 raw run（当前SWD诊断停在此，待适配/质量验收）
    ↓
 ② build-capture（canonical CSV + manifest + TASK + BUNDLE + SHA256SUMS）
    ↓ 本地 verify（完整性 + 严格数据集）
@@ -208,7 +215,7 @@
    ↓
 ⑥ 本地 notify → 远程 DSH 会话（只发已 ready 的 id）
    ↓
-⑦ 远程 agent 只读 experiment/<id>/，在 results/.staging/<id>.partial/ 写结果
+⑦ 远程 agent 只读 real2sim/experiment/<id>/，在 real2sim/results/.staging/<id>.partial/ 写结果
    ↓
 ⑧ remote_publish_result.py 校验 RESULT.json + 哈希，写 RESULT_READY.json
    ↓
@@ -216,7 +223,7 @@
    ↓
 ⑩ 本地 results show / pull、watch；读取 report.md + next_data_request.json
    ↓
-⑪ 若缺数据：plan-requests 生成 r2s_run.py 采集计划 → 回到 ①（新 bundle）
+⑪ 若缺数据：plan-requests 生成单关节/配对采集计划 → 回到 ①（新 bundle）
 ```
 
 为什么必须 staging + READY + 改名：
@@ -226,7 +233,7 @@
 - 正式目录名只在所有哈希与严格校验通过后出现，消费者只需判断 `READY.json`；
 - 结果侧同样原子：`RESULT_READY.json` 出现前，`results/<id>/` 不存在。
 
-## 5. 本地命令
+## 5. 硬件主机常用命令
 
 先安装/确认：本机只需要 Python 3.12 + `rsync` + `ssh`；不需要 Isaac。远程需要项目现有 Isaac 环境（`run.sh` 会用它）。
 
@@ -236,9 +243,9 @@ cd /home/botyard/real2sim/botyard_real2sim
 # 0. 配置（已生成则只需 doctor）
 python3 scripts/real2sim_bridge.py doctor
 
-# 1. 从一次 r2s_run 采集目录构建 train/validation bundle
+# 1. 仅从独立验收合格的旧host对齐输入构建；不适用于当前SWD诊断
 python3 scripts/real2sim_bridge.py build-capture \
-  /home/botyard/real2sim/embedding_ws/runs/<run> \
+  /path/to/legacy-host-aligned-run \
   --meta /path/to/capture_meta.json \
   --joints MFJ2 MFJ3 --split train \
   --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1
@@ -311,7 +318,23 @@ real2sim/results/<bundle_id>/
 
 ## 7. 补采请求契约
 
-`next_data_request.json` 是本地下一轮采集的唯一输入。推荐结构：
+远程agent在`next_data_request.json`中写清残差、欠缺观测和激励条件；硬件主机agent收到后核对机台配置、生成计划、验证并执行。`plan-requests`和所有采集runner均在硬件主机运行，远程无需安装这些工具。
+
+以下为2026-11-20的硬件能力快照，供远程设计补采；每条数据最终以随包归档的固件、配置、实际输入和测量质量为准：
+
+| 项目 | 请求能力与解释 |
+|---|---|
+| 机台与范围 | 左手、空载、固定手体姿态，针对中指MFJ2/MFJ3 |
+| 配对目标角 | MFJ2为0.5–89.5°，MFJ3为2.5–89.5°；目标范围不保证实际可达 |
+| 每轴请求速度上限 | 各自独立15–360°/s；保持原Fallback PID及1°位置死区，没有15°/s实际输出下限 |
+| 电机轴目标死区 | 200rad/s，与关节°/s不是同一量；原PID较小输出仍可能归零 |
+| 板内模块限速读回 | J2为4rad/s、J3为6.25rad/s；不能据请求360°/s宣称实际达到360°/s |
+| 单关节profile | 幅值≤0.10rad；用于基础小幅激励，不能指定搭档定姿 |
+| 配对激励 | 同帧两关节、互为定姿、独立速度与四方向、全行程、同步姿态穿越、相位/速比、扫频、加载/反转/驻留 |
+| 参考轨迹与覆盖 | 穿越轨迹可预加速，并给低速轴留起步行程；参考加速度/恒速平台不等于实测，缺格由真实源新值与时间证据审计 |
+| 电机直接速度控制 | 当前通用runner尚未支持，不能以关节位置伺服速度上限替代 |
+
+远程可据此请求某一固定搭档角度、角度/速度组合、相位、方向、驻留或独立validation录制，并说明要区分的参数/结构假设。无需先读取硬件主机的本地文件。单关节请求示例：
 
 ```json
 {
@@ -326,7 +349,7 @@ real2sim/results/<bundle_id>/
       "joints": ["MFJ2"],
       "profile": "triangle",
       "center_deg": 20,
-      "amplitude_deg": 10,
+      "amplitude_deg": 5,
       "speed_cap_deg_s": 30,
       "duration_s": 8,
       "frequency_hz": 0.1,
@@ -341,11 +364,66 @@ real2sim/results/<bundle_id>/
 }
 ```
 
-`plan-requests` 会把它转成 `embedding_ws/tools/r2s_run.py` 命令（默认 100 Hz、`--effort-raw 0`），输出 `plan.json` 与 `run_plan.sh`。计划不会自动执行；必须在确认端口、限位、手姿态与安全范围后自行加 `--execute`。
+上述为`execution_mode=separate`（默认）的旧单关节请求。`directions` / `dwell_s`仅描述意图，现有profile内部固定方向与阶段。模板幅值5°在单关节profile的0.10rad上限内，但仍须核对中心余量。仅把`joints`改成两个关节会生成两次独立运行，不能表达搭档固定角度或同时运动。
+
+硬件主机的`plan-requests`把单关节请求转成`r2s_run.py`命令（默认100Hz、速度上限0.2618rad/s约15°/s、`--effort-raw 0`），输出`plan.json`与`run_plan.sh`。生成脚本只供本机离线预览，实际执行由硬件主机agent另取新`--out`并显式加`--execute`。
+
+需要搭档定姿、两关节独立速度或联合轨迹时，使用`execution_mode=paired`、`joints=[MFJ2,MFJ3]`和完整的`pair_plan`。例如固定J3=30°，J2从10°阶跃到12°后保持：
+
+```json
+{
+  "id": "j2_step_at_j3_30",
+  "joints": ["MFJ2", "MFJ3"],
+  "execution_mode": "paired",
+  "repeats": 1,
+  "pair_plan": {
+    "schema": "real2sim-pair-plan-v1",
+    "joint_order": ["MFJ2", "MFJ3"],
+    "metadata": {"experiment_id": "j2_step_at_j3_30", "family": "remote_supplement", "split": "train", "repeat": 1, "conditions": {"active_joint": "MFJ2", "held_joint": "MFJ3", "held_angle_deg": 30, "history": "hold_step_hold", "dwell_s": 1, "direction": [1, 0]}},
+    "points": [
+      {"offset_ns": 0, "phase": "hold", "positions_rad": [0.17453292519943295, 0.5235987755982988], "speed_limits_rad_s": [0.2617993877991494, 0.2617993877991494]},
+      {"offset_ns": 1000000000, "phase": "hold", "positions_rad": [0.17453292519943295, 0.5235987755982988], "speed_limits_rad_s": [0.2617993877991494, 0.2617993877991494]},
+      {"offset_ns": 1010000000, "phase": "step", "positions_rad": [0.20943951023931956, 0.5235987755982988], "speed_limits_rad_s": [0.2617993877991494, 0.2617993877991494]},
+      {"offset_ns": 3010000000, "phase": "hold", "positions_rad": [0.20943951023931956, 0.5235987755982988], "speed_limits_rad_s": [0.2617993877991494, 0.2617993877991494]}
+    ]
+  }
+}
+```
+
+把该条放进外层`experiments`，硬件主机的桥会冻结payload，为每次重复生成一条`r2s_pair_run.py --plan ... --out ...`离线检查命令。实际执行时保持同帧双关节输入，不拆成两个单关节运行。未知mode、缺payload或两关节错序会拒绝；未填mode但有`pair_plan`时也按paired处理。桥只作结构检查，目标范围、时间间隔、速度、wire量化和ROS控制器顺序由硬件主机的配对校验器完整检查。
+
+`repeats>1`时保留原始payload，再生成每次独立冻结计划：轨迹points保持一致，`metadata.experiment_id`追加`-r01`等后缀，`repeat`为1起整数，`source_experiment_id`保留原ID，避免重复录制在覆盖审计中混为一个实验。一次请求只录制一条既定campaign ID时使用`repeats=1`，保留原metadata。
+
+配对计划包含2–6001点、时间从0递增、间隔≥10ms、总长≤60s，位置与速度单位分别为rad和rad/s。精确方向、停留和速度变化写入points；metadata保留experiment_id、family、split、repeat及conditions。远程可使用本仓库模板表达完整payload；参考轨迹和候选矩阵由硬件主机维护，无需在远程安装。生成计划、成功执行、实际状态覆盖和参数可辨识性分别判断。
+
+若远程只确定了观测缺口，可先给出`purpose`、`requested_conditions`和`local_preparation_required=true`，由硬件主机agent补齐具体计划。此类语义请求尚不可直接交给`plan-requests`，paired请求必须先形成完整`pair_plan`；不能因为缺少本机工具而伪造已执行或已覆盖的状态。
+
+例如下面一项只描述联合姿态附近的速度缺口，不要求远程生成波形：
+
+```json
+{
+  "id": "coupled_speed_gap",
+  "joints": ["MFJ2", "MFJ3"],
+  "execution_mode": "paired",
+  "local_preparation_required": true,
+  "requested_conditions": {
+    "target_pose_deg": [45, 30],
+    "signed_velocity_deg_s": [60, -30],
+    "history": "start from rest, accelerate before the target pose, then hold",
+    "split": "validation"
+  },
+  "repeats": 3,
+  "purpose": "检查该联合姿态下的反向耦合残差，区分走线摩擦与控制/采样延迟"
+}
+```
+
+`requested_conditions`表达观测意图，字段由两侧agent解释；它不是已验收的实际速度或机器可直接执行的计划。硬件主机应反馈能否实现、最终计划和未满足条件，不得静默改成两个独立run或将目标速度当成实测。
 
 可直接复制的模板：
+
 - [capture_meta.example.json](../bridge/capture_meta.example.json)
 - [next_data_request.example.json](../bridge/next_data_request.example.json)
+- [next_data_request_pair.example.json](../bridge/next_data_request_pair.example.json)
 
 ## 8. 远程 agent 命令协议
 
@@ -358,31 +436,33 @@ real2sim/results/<bundle_id>/
 
 远程 agent 的职责：
 
-1. 读 `READY.json / TASK.json / manifest.json / README.md`，先复核 READY 与哈希；
+1. 在仿真主机读取`real2sim/experiment/<bundle_id>/`中的`READY.json / TASK.json / manifest.json / README.md`，复核READY与哈希；
 2. `intent=transport_selftest`：只写确认性 result，不跑 PhysX/fit；
 3. `intent=calibration`：按 `data → parameters → baseline replay → evaluate → curves` 执行，容差只用 TASK 中的显式值；
    - `split=train`：只有对应的**独立 validation bundle 已 ready** 时才允许 `fit`；否则只做 baseline/evaluate/diagnose，并在 `next_data_request.json` 申请独立 validation 录制；
    - `split=validation/test`：只做评估/对比，不得用于训练或拟合；
-4. 结果写 `results/.staging/<id>.partial/`，不得写 `experiment/`；
+4. 结果写`real2sim/results/.staging/<id>.partial/`，保持输入包只读；模型与参数修改按项目标定流程进行；
 5. 用 `remote_publish_result.py` 发布；
 6. 返回结论摘要；缺数据时写 `next_data_request.json`。
 
-## 9. 从 `r2s_run.py` 采集到 bundle
+## 9. 当前 SWD 输出与历史构建输入
 
-采集侧原始目录（`r2s_run.py --execute --out <run>`）应包含：
+当前`r2s_run.py`与`r2s_pair_run.py`输出samples/commands/metadata/command_plan/joint_state_quality，以及`swd/`下三板`.bin` / `.jsonl`、OpenOCD日志、`capture_manifest.json`、`swd_quality.json`。配对版本额外冻结`input_plan.json`与其SHA256，commands每行记录同次publish的两个关节字段。离线分析可生成`aligned_swd.csv` / `swd_analysis.json`；它保留原始异步样本并映射至H7本地时钟，尚不是canonical capture。后续adapter须保留原始证据、真正的控制分支/命令事件与独立质量失败，不能由重新打包覆盖aborted或fitfalse。
+
+下面仅记录 `build-capture` **历史 UART / host 对齐输入schema**，不要求为新SWD采集生成这些旧文件：
 
 ```text
 samples.csv               # ROS /joint_states 反馈，主机 CLOCK_MONOTONIC_RAW
 commands.csv              # 每次实际 publish 的三字段 + 时间
 boards.csv                # J2/J3 原始 UART 行
-board_samples_aligned.csv # r2s_align.py 映射后的板卡采样
+board_samples_aligned.csv # 历史已映射至host ns的板卡采样
 clock_fit.json            # H7/G4/host 时钟拟合与质量门
 joint_state_quality.json  # 关节反馈质量门
 metadata.json             # 采集参数、控制器、量化说明
 command_plan.csv          # 计划轨迹
 ```
 
-`build-capture` 默认从 `commands.csv` 推断要导出的关节，因此一次只激励 MFJ2 的采集会得到单关节 bundle；这合法。需要一条 bundle 覆盖 MFJ2+MFJ3 时，采集端必须在同一次 run 中同时下发两关节指令（或扩展采集器），不要把两条独立 run 拼成一个 train/validation 包。
+对上述合格历史输入，`build-capture`默认从`commands.csv`推断要导出的关节，因此一次只激励MFJ2的采集会得到单关节bundle；这合法。本机现有配对执行器可在同一次run中同时下发两关节，但其SWD输出仍需新adapter，不能直接喂给历史输入接口。不要把两条独立run拼成一个train/validation包。
 
 `build-capture` 需要一份 `capture_meta.json`，至少包含：
 
@@ -413,12 +493,12 @@ command_plan.csv          # 计划轨迹
   },
   "quality_gates": {
     "max_sensor_skew_s": 0.002,
-    "max_sensor_skew_source": "由 r2s_align 的残差和传感器规格决定"
+    "max_sensor_skew_source": "REPLACE: measured transport bias, clock mapping and sensor acquisition-age budget"
   }
 }
 ```
 
-不要伪造 `calibration.status=applied`。没有证据时严格校验会拒绝发布，这是预期行为。可直接复制 [capture_meta.example.json](../bridge/capture_meta.example.json) 并逐项替换；标记为 `REPLACE` 的字段必须按实测/实验决策填写。
+不要伪造 `calibration.status=applied`，或用常量metadata替代实际逐行Fallback证据。当前源运行质量尚未完整传递至导出资格，因此严格校验通过也不能覆盖原始aborted/fitfalse。可直接复制 [capture_meta.example.json](../bridge/capture_meta.example.json) 并逐项替换；标记为 `REPLACE` 的字段必须按实测/实验决策填写。
 
 `calibration.motor_position.angle_basis` 支持：
 - `output_shaft`（默认）：`module_position_rad` 已经是绕线轮输出轴角，桥不再乘/除减速比；
@@ -429,7 +509,7 @@ command_plan.csv          # 计划轨迹
 - 专用密钥：`~/.ssh/real2sim_bridge_ed25519`；远程 `~/.ssh/authorized_keys` 只追加 `real2sim-bridge@botyard-local`，权限 700/600。
 - `bridge.env` 权限 600，含远程 DSH 启动 token；**不要提交到 git**。
 - DSH token 会在远程 `dsh web` 重启后轮换；`doctor` 报 `DSH token FAIL` 时，重新打开远程 URL 并用 `init-config --dsh-token ...` 或环境变量更新。
-- 远程 `experiment/` 只读；所有写入限制在 `results/.staging` 与 `results/`。
+- 远程输入包`real2sim/experiment/`只读；任务结果写入`real2sim/results/.staging/`并发布到`real2sim/results/`。该约束不禁止按任务修改模型代码和参数。
 - 远程校验拒绝符号链接、绝对路径、`..` 路径和 SHA 表中未登记的文件。
 - `rsync --checksum` 只同步内容差异；正式目录发布后不要原地改文件，追加数据请新建 bundle。
 
@@ -457,7 +537,7 @@ command_plan.csv          # 计划轨迹
 5. 远程用 `remote_publish_result.py` 原子发布 `results/<id>`，生成 `RESULT.json`、`report.md`、`next_data_request.json`、`RESULT_READY.json`；
 6. 本地 `results show` 成功读取结果与报告；`next_data_request` 为空。
 7. 第二次自检 `r2s-bridge-check` 重复了完整发布→远程确认→结果回读，`next_data_request.json` 已按新约定写 `status=none`、`experiments=[]`。
-8. 桥单测 4 项通过（`tests/test_real2sim_bridge.py`），覆盖 selftest、篡改检测、raw capture 导出、远程 verify/result publish；远程完整测试 **245 passed**，Ruff check/format 通过。
+8. 当时桥单测4项通过（`tests/test_real2sim_bridge.py`），覆盖selftest、篡改检测、旧输入导出、远程verify/result publish；当时远程完整测试245项通过，Ruff check/format通过。这是该次自检记录，不代表后续修改已经在远程重验。
 
 该记录只证明传输、完整性、READY 握手和数据集结构校验可用；**不**证明物理模型、参数或真机曲线拟合。
 

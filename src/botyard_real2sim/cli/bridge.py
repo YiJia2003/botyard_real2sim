@@ -22,6 +22,7 @@ Typical local use (system Python is enough)::
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import os
@@ -469,6 +470,24 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
     experiments = request.get("experiments") or request.get("requests") or []
     if not isinstance(experiments, list) or not experiments:
         raise BridgeError("next_data_request.json has no experiments/requests")
+    preparation_message = (
+        "request requires local plan preparation: the hardware-host agent must prepare and "
+        "validate the executable plan, then clear local_preparation_required before plan-requests"
+    )
+    if request.get("local_preparation_required") is True:
+        raise BridgeError(preparation_message)
+    seen_slugs: set[str] = set()
+    for index, experiment in enumerate(experiments):
+        if not isinstance(experiment, dict):
+            raise BridgeError(f"experiments[{index}] must be an object")
+        if experiment.get("local_preparation_required") is True:
+            raise BridgeError(f"experiments[{index}]: {preparation_message}")
+        slug = bridge.slug(str(experiment.get("id") or f"request-{index}"))
+        if slug in seen_slugs:
+            raise BridgeError("experiment IDs collide after filename normalization; use distinct IDs")
+        seen_slugs.add(slug)
+    out_dir = out_dir.expanduser().resolve()
+    r2s_root = r2s_root.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=False)
     lines = ["#!/usr/bin/env bash", "set -euo pipefail", "", f"cd {bridge.shlex.quote(str(r2s_root))}", ""]
     plan: list[dict[str, Any]] = []
@@ -478,6 +497,52 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
         joints = experiment.get("joints") or ([experiment["joint"]] if experiment.get("joint") else [])
         if not joints:
             raise BridgeError(f"experiments[{index}] needs joints")
+        execution_mode = experiment.get(
+            "execution_mode", "paired" if "pair_plan" in experiment else "separate"
+        )
+        if execution_mode not in ("separate", "paired"):
+            raise BridgeError(f"experiments[{index}] has unsupported execution_mode")
+        if execution_mode == "separate" and "pair_plan" in experiment:
+            raise BridgeError("pair_plan requires paired execution; it cannot be split silently")
+        if execution_mode == "paired":
+            pair_plan = experiment.get("pair_plan")
+            if (
+                list(joints) != ["MFJ2", "MFJ3"]
+                or not isinstance(pair_plan, dict)
+                or pair_plan.get("schema") != "real2sim-pair-plan-v1"
+                or pair_plan.get("joint_order") != ["MFJ2", "MFJ3"]
+                or not isinstance(pair_plan.get("points"), list)
+                or len(pair_plan["points"]) < 2
+                or not isinstance(pair_plan.get("metadata", {}), dict)
+            ):
+                raise BridgeError("paired requests require both middle joints and a real2sim-pair-plan-v1 payload")
+            repeats = experiment.get("repeats", 1)
+            if isinstance(repeats, bool) or not isinstance(repeats, int) or not 1 <= repeats <= 100:
+                raise BridgeError("paired request repeats must be an integer between 1 and 100")
+            slug = bridge.slug(str(experiment.get("id") or f"request-{index}"))
+            source_plan_path = (out_dir / f"pair-plan-{index}-{slug}.json").resolve()
+            bridge.write_json_atomic(source_plan_path, pair_plan)
+            for repeat in range(repeats):
+                plan_path = source_plan_path
+                if repeats > 1:
+                    repeated_plan = copy.deepcopy(pair_plan)
+                    metadata = repeated_plan.setdefault("metadata", {})
+                    source_id = str(metadata.get("experiment_id") or slug)
+                    metadata.update(experiment_id=f"{source_id}-r{repeat + 1:02d}",
+                                    repeat=repeat + 1, source_experiment_id=source_id)
+                    plan_path = (out_dir / f"pair-plan-{index}-{slug}-r{repeat + 1:02d}.json").resolve()
+                    bridge.write_json_atomic(plan_path, repeated_plan)
+                out = out_dir / f"{slug}_middle_pair_r{repeat + 1}"
+                command = ["python3", "tools/r2s_pair_run.py", "--plan", str(plan_path),
+                           "--out", str(out), "--effort-raw", str(int(effort_raw))]
+                lines.extend(["# Paired payload: validate and dry-run locally before execution.",
+                              " ".join(bridge.shlex.quote(part) for part in command), ""])
+                plan.append({"execution_mode": "paired", "joints": list(joints),
+                             "pair_plan": str(plan_path), "repeat": repeat + 1,
+                             "source_pair_plan": str(source_plan_path),
+                             "output": str(out),
+                             "execute": "local pair runner validates bounds, controller and both joints before --execute"})
+            continue
         profile = str(experiment.get("profile") or "step")
         center_deg = experiment.get("center_deg")
         amplitude_deg = experiment.get("amplitude_deg")
@@ -493,7 +558,9 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
         )
         speed = experiment.get("speed_cap_deg_s")
         speed_rad = (
-            float(speed) * math.pi / 180.0 if speed is not None else float(experiment.get("speed_limit_rad_s") or 0.2)
+            float(speed) * math.pi / 180.0
+            if speed is not None
+            else float(experiment.get("speed_limit_rad_s") or 0.2618)
         )
         duration = float(experiment.get("duration_s") or 8.0)
         rate = float(experiment.get("rate_hz") or 100.0)
@@ -514,22 +581,22 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
                     "--out",
                     str(out),
                     "--duration-s",
-                    f"{duration:g}",
+                    repr(duration),
                     "--rate-hz",
-                    f"{rate:g}",
+                    repr(rate),
                     "--speed-limit-rad-s",
-                    f"{speed_rad:g}",
+                    repr(speed_rad),
                     "--frequency-hz",
-                    f"{frequency:g}",
+                    repr(frequency),
                     "--end-frequency-hz",
-                    f"{end_frequency:g}",
+                    repr(end_frequency),
                     "--effort-raw",
                     str(int(effort_raw)),
                 ]
                 if center_rad is not None:
-                    command.extend(["--center-rad", f"{center_rad:g}"])
+                    command.extend(["--center-rad", repr(center_rad)])
                 if amplitude_rad is not None:
-                    command.extend(["--amplitude-rad", f"{amplitude_rad:g}"])
+                    command.extend(["--amplitude-rad", repr(amplitude_rad)])
                 expression = " ".join(bridge.shlex.quote(part) for part in command)
                 lines.append(f"# {experiment.get('purpose', '')}")
                 lines.append(expression)
@@ -558,8 +625,9 @@ def _plan_requests(request_path: Path, out_dir: Path, *, r2s_root: Path, effort_
         "script": str(script),
         "note": (
             "Dry command plan only; review limits and run on hardware explicitly. "
-            "directions/dwell_s are retained in the request but current r2s_run profiles encode "
-            "direction and dwell internally; verify the generated profile before --execute."
+            "For separate requests, directions/dwell_s describe intent and r2s_run profiles encode "
+            "their stages internally. Paired requests use the frozen pair_plan points. "
+            "Validate locally and use a new output directory for hardware execution."
         ),
     }
     bridge.write_json_atomic(out_dir / "plan.json", record)
@@ -586,7 +654,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build_self.add_argument("bundle_id", nargs="?")
     build_self.add_argument("--replace", action="store_true")
 
-    build_capture = sub.add_parser("build-capture", help="convert an r2s_run capture into a bundle")
+    build_capture = sub.add_parser("build-capture", help="convert legacy host-aligned capture tables into a bundle")
     build_capture.add_argument("capture_dir", type=Path)
     build_capture.add_argument("--meta", type=Path, required=True, help="capture_meta.json with evidence and limits")
     build_capture.add_argument("--bundle-id")
@@ -645,7 +713,7 @@ def _build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--timeout-s", type=float, default=3600.0)
     watch.add_argument("--interval-s", type=float, default=5.0)
 
-    plan = sub.add_parser("plan-requests", help="turn next_data_request.json into r2s_run.py commands")
+    plan = sub.add_parser("plan-requests", help="turn next_data_request.json into single/pair dry-run commands")
     plan.add_argument("request", help="next_data_request.json path or bundle id with a pulled result")
     plan.add_argument("--out-dir", type=Path, required=True)
     plan.add_argument("--r2s-root", type=Path, default=Path("/home/botyard/real2sim/embedding_ws"))

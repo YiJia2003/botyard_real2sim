@@ -1,12 +1,12 @@
 # botyard_real2sim
 
-Botyard 灵巧手的独立空载 real2sim 调试项目。包含 Fallback 控制、变力臂几何、腱绳走线摩擦、有限行程弹簧与等效惯量、电机角观测，以及实际连接 Isaac Lab / Isaac Sim **PhysX** 的运行入口。
+Botyard 灵巧手的空载 real2sim 仿真与参数优化项目，部署在远程仿真主机。硬件主机负责真机控制、固件与采集，将数据传入；远程 agent 使用本项目回放指令、比较曲线、优化模型和参数，并回传结果与补采请求。模型包含 Fallback 控制、变力臂几何、腱绳走线摩擦、有限行程弹簧与等效惯量、电机角观测，以及 Isaac Lab / Isaac Sim **PhysX** 运行入口。
 
 运行只需要本项目和已经配置好的 Isaac Lab 环境。手部 USD、关节/引擎配置、测试、S1 绕线图片及 STEP 均已复制到本项目，不从原仓库导入代码或引用原仓库的资产。原项目文件保持不变。
 
 ## 开始调试
 
-当前机器直接复用 `/home/cyj/IsaacLab/.venv/bin/python`，无需重新安装仿真引擎。启动脚本会设置本项目的 Python 路径，输出默认写到本项目当前目录：
+当前远程仿真主机使用 `/home/cyj/IsaacLab/.venv/bin/python`。启动脚本会设置本项目的 Python 路径，输出默认写到本项目当前目录：
 
 ```bash
 cd /home/cyj/botyard_real2sim
@@ -71,29 +71,13 @@ agent 标定入口见[项目 skill 路由](.agents/skills/real2sim-agent-router/
 
 拟合阈值与参数边界必须有测量或实验依据。fit 会报告训练/验证基线与逐通道结果；留出集通过显式容差且相对留出基线改善后才接受为曲线拟合候选，这仍不等于已证明物理模型完成真机标定。
 
-## 本地 ↔ 远程数据桥（real2sim experiment）
+## 硬件主机 ↔ 远程仿真主机
 
-真机采集在本机、PhysX/拟合在远程时，用 `experiment/` 数据包和 `real2sim/experiment/` 对接。桥保证**先上传到 staging、复核哈希与 manifest、写 READY、再原子改名**，远程只消费 `READY.json` 存在的包；远程结果同样先 staging 再发布。
+硬件主机采集并上传，仿真主机消费 `real2sim/experiment/<bundle_id>/` 中带 `READY.json` 的包。桥按“上传staging → 复核哈希与manifest → 原子发布”的顺序交接；远程 agent 按 `TASK.json` 执行，结果写入 `real2sim/results/`，补采需求写入 `next_data_request.json`。训练拟合需要独立的validation录制；validation/test数据仅用于评估。
 
-```bash
-cd /home/botyard/real2sim/botyard_real2sim
+远程 agent 从[桥操作说明](bridge/README.md)和[标定流程](docs/AGENT_CALIBRATION.md)开始。硬件主机的打包、上传和通知命令集中在[数据桥文档§5](docs/REAL2SIM_BRIDGE.md#5-硬件主机常用命令)，无需在仿真主机运行。远程仓库不依赖硬件主机的 `embedding_ws`、ROS或设备端口。
 
-# 本机只需 Python 3.12 + ssh + rsync；不需要 Isaac 环境
-python3 scripts/real2sim_bridge.py doctor
-
-# 原始采集目录 -> 数据包（需要 capture_meta.json，显式容差）
-python3 scripts/real2sim_bridge.py build-capture \
-  /home/botyard/real2sim/embedding_ws/runs/<run> \
-  --meta /path/to/capture_meta.json --joints MFJ2 MFJ3 --split train \
-  --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1
-
-python3 scripts/real2sim_bridge.py verify <bundle_id>
-python3 scripts/real2sim_bridge.py publish <bundle_id>
-python3 scripts/real2sim_bridge.py notify <bundle_id> --timeout-s 3600
-python3 scripts/real2sim_bridge.py results show <bundle_id>
-```
-
-远程目录、bundle/result/next-data 契约、staging 生命周期、SSH 密钥与故障处理见 [数据桥文档](docs/REAL2SIM_BRIDGE.md)。本地目录说明见 `/home/botyard/real2sim/experiment/README.md`。
+截至2026-11-20，硬件侧使用三板SWD RAM采集。SWD到标准拟合数据的适配、时间误差与源质量验收尚未完成，现有SWD诊断不能直接当作可拟合数据；远程收到此类诊断时只能在明确任务范围内分析并反馈缺项。SSH/READY校验通过只证明交接与结构完整性，不能覆盖源运行的失败或拟合限制。输入边界及补采格式见[数据桥契约](docs/REAL2SIM_BRIDGE.md)。
 
 ## 修改和扫描参数
 
@@ -129,8 +113,8 @@ src/botyard_real2sim/
   controller.py, runtime.py, protocol.py, commands.py  控制、调度和记录接口
   model.py, geometry.py, transmission.py              腱绳/关节力学
   routing_dynamics.py                                摩擦、接触记忆、惯量和硬停止
-  simulation/hand_cfg.py, physics.py, ../scene.py      本地 PhysX 适配
-  assets/data/hand/boya.usda                          本地手部资产
+  simulation/hand_cfg.py, physics.py, ../scene.py      PhysX 引擎适配
+  assets/data/hand/boya.usda                          随仓库交付的手部资产
   cli/replay.py, curves.py, sweep.py                  回放、曲线和扫描入口
   cli/data.py, parameters.py, evaluate.py, fit.py     agent 数据/参数/评分/拟合入口
   cli/bridge.py, bridge/, scripts/real2sim_bridge.py  本地↔远程 staging/READY 数据桥

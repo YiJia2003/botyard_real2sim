@@ -10,7 +10,7 @@
       "joints": ["MFJ2"],
       "profile": "triangle",
       "center_deg": 20,
-      "amplitude_deg": 10,
+      "amplitude_deg": 5,
       "speed_cap_deg_s": 30,
       "duration_s": 8,
       "frequency_hz": 0.1,

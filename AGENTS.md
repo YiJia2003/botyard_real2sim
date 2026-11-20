@@ -2,6 +2,14 @@
 
 This repository calibrates an unloaded tendon-driven hand against synchronized real-hardware traces. Before repository work, read the [project skill router](.agents/skills/real2sim-agent-router/SKILL.md); it selects the relevant Superpowers workflow and project references. For recorded curves, model parameters, or calibration workflows, follow its route to [the real2sim calibration skill](.agents/skills/real2sim-calibration/SKILL.md). See [shared agent skills](docs/SHARED_AGENT_SKILLS.md) for skill sources and harness notes.
 
+## Deployment and responsibilities
+
+The simulation host runs this repository at `/home/cyj/botyard_real2sim`. Its agent validates received recordings, replays commands, diagnoses residuals, changes model structure or parameters when supported by evidence, evaluates held-out recordings, and publishes results and requests for more data. Hardware control, firmware, ROS, SWD acquisition, clock qualification and dataset preparation run on the separate hardware host.
+
+The simulation checkout is self-contained. It does not require the hardware host's `embedding_ws`, `ros2_ws`, port mappings or device access. Use the in-repository [bridge contract](docs/REAL2SIM_BRIDGE.md) for input, result and acquisition-request schemas. Hardware settings are a dated capability snapshot; the recording's archived firmware/configuration and quality evidence determine what was actually measured.
+
+On the simulation host, read only ready inputs under `real2sim/experiment/<bundle_id>/` and write task artifacts under `real2sim/results/.staging/<bundle_id>.partial/`. Follow `TASK.json` and publish with `real2sim/bridge/remote_publish_result.py`. A request for another excitation is written to `next_data_request.json`; the hardware-host agent validates, plans and executes it. Repository/model edits remain normal simulation-host work; the read-only restriction applies to received experiment bundles.
+
 ## Commands
 
 - `./run.sh replay ...` replays recorded commands through Isaac Lab / PhysX.
@@ -12,9 +20,12 @@ This repository calibrates an unloaded tendon-driven hand against synchronized r
 - `./run.sh evaluate ...` scores a replay with explicit channel tolerances and quality gates.
 - `./run.sh fit ...` runs bounded training-set fitting and held-out validation; install `.[calibration]` for SciPy.
 - `./run.sh test` runs the project tests; `./run.sh check` runs Ruff checks.
-- `python3 scripts/real2sim_bridge.py ...` builds/verifies/publishes real2sim data bundles to the remote host; see [docs/REAL2SIM_BRIDGE.md](docs/REAL2SIM_BRIDGE.md). Use `build-capture`/`publish`/`notify`; never hand-edit a ready bundle.
+- On the simulation host, use `python3 real2sim/bridge/remote_publish_result.py --project-root /home/cyj/botyard_real2sim --bundle-id <id>` to publish the completed result packet. Source scripts live in `bridge/`; `real2sim/bridge/` is their deployed runtime copy.
+- On the hardware host only, `python3 scripts/real2sim_bridge.py ...` builds/verifies/uploads bundles and reads remote results. `doctor`, `build-capture`, `publish`, `notify` and `plan-requests` belong to that side. The current exporter accepts legacy host-aligned inputs; the three-board SWD adapter and timing/source-quality qualification remain incomplete. A remote diagnostic task may report those gaps; it must preserve `fit_ready=false` and request the missing evidence.
 
 Use the configured Isaac Lab interpreter. Unit tests and curve comparisons do not prove real-hardware calibration or full PhysX convergence.
+
+For paired or fixed-partner acquisition requests, write `execution_mode=paired` with a full `real2sim-pair-plan-v1` payload, following [the request contract](docs/REAL2SIM_BRIDGE.md#7-补采请求契约) and the in-repository templates. A two-joint list in a separate request produces separate runs. The hardware host owns waveform generation, measured coverage auditing and execution; the simulation host need not run or install those tools. Generated candidates and dry runs are not hardware coverage evidence.
 
 ## Calibration Constraints
 

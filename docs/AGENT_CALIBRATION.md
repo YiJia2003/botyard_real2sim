@@ -2,6 +2,8 @@
 
 This document is the operating procedure for agents and engineers using the current real2sim tools. Local-to-remote data handoff uses the staging/READY bundle protocol in [REAL2SIM_BRIDGE.md](REAL2SIM_BRIDGE.md); the remote side must only consume bundles with `READY.json` and must publish results with `real2sim/bridge/remote_publish_result.py`. The repository skill at `.agents/skills/real2sim-calibration/SKILL.md` routes agents here for the detailed workflow. Codex can read the project skill through `AGENTS.md`; DeepSeek Harness can use the same path when its runtime loads repository skills and `AGENTS.md`, though automatic loading is not verified here.
 
+This workflow runs on the simulation host. The hardware host controls and records the hand; its agent prepares and uploads the data and executes requested follow-up experiments. The simulation-host agent validates inputs, diagnoses residuals, improves model structure and parameters, evaluates independent recordings, and returns results and acquisition requests. It does not need `embedding_ws`, ROS or device access. Received experiment bundles remain read-only; evidence-supported model and source changes belong to the simulation work.
+
 ## 1. Qualify the recording
 
 Use an untouched copy of the hardware recording. Confirm the exact firmware/control branch, Fallback state, hand-root pose, selected joints, command units, feedback units, sensor positions, and sensor zero/scale. Required comparison traces for each fitted joint are:
@@ -12,11 +14,15 @@ Use an untouched copy of the hardware recording. Confirm the exact firmware/cont
 
 The actual sent angle/speed/third-field commands and their event timing must be available for replay. Preserve `command_seq`, event markers, fallback evidence, and the raw timestamps where available. The third command field is not enforced as a tension target by the current Fallback model.
 
-Create a manifest from the contract in `src/botyard_real2sim/schemas/dataset-manifest.schema.json`, then validate it with `./run.sh data --manifest /data/recording/manifest.json --strict`. The validator checks recorded calibration and motor-transform evidence, required channels, timestamps, command events, the canonical CSV SHA-256, split, coverage, and measured sensor skew against the explicit `quality_gates.max_sensor_skew_s` limit and its `max_sensor_skew_source`. Record the raw source recording ID and SHA-256 as provenance; exports or time slices from one capture keep the same source identity. Choose the skew limit from the sensor timing specification and experiment sampling interval; do not invent it. The validator does not convert raw sensor data, unwrap encoders, or synchronize independent clocks: preprocess those explicitly, preserve the raw recording, and document each transform in the manifest. A plot-time global tension bias is not applied to replay initial tension, so do not rely on that option as the sole correction for the initial state.
+The hardware host prepares the canonical data and manifest using `src/botyard_real2sim/schemas/dataset-manifest.schema.json`. On the simulation host, validate the delivered manifest with `./run.sh data --manifest /data/recording/manifest.json --strict`; do not rebuild or edit an input bundle that is already READY. The validator checks recorded calibration and motor-transform evidence, required channels, timestamps, command events, the canonical CSV SHA-256, split, coverage, and measured sensor skew against the explicit `quality_gates.max_sensor_skew_s` limit and its `max_sensor_skew_source`.
+
+Check the archived source recording ID and SHA-256; exports or time slices from one capture retain the same source identity. The hardware host must document clock mapping, sensor-age limits, angle unwrapping, direction and gearbox conversion. The validator does not perform or independently verify those physical transforms. If evidence is missing, report the blocker and request a corrected new bundle or an additional measurement. Simulation-host diagnostic transforms may be saved separately with their method and source hashes; they do not change the original evidence or remove an unknown quality limit. A plot-time global tension bias is not applied to replay initial tension, so do not rely on it as the sole correction for the initial state.
 
 ## 2. Establish a baseline
 
 Before tuning, inspect the active parameter catalog and record the current revision, config, real CSV hash, firmware, experiment conditions, and reason for the run:
+
+The paths under `logs/calibration` below are standalone development examples. For a bridge task, use its actual ready input bundle and put all generated artifacts under the result staging directory specified in `TASK.json`; replace the example paths, joints, tolerances and bounds with that task's values before running.
 
 ```bash
 ./run.sh parameters --config configs/real2sim/s1.yaml \

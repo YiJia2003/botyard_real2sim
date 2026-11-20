@@ -1,10 +1,15 @@
 import csv
 import json
+import math
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from botyard_real2sim import bridge
+from botyard_real2sim.cli.bridge import _plan_requests
 from botyard_real2sim.datasets import validate_dataset
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -142,6 +147,48 @@ def test_export_capture_to_bundle(tmp_path):
     assert len(rows) >= 200
     assert any(row["command_event"] == "1" for row in rows)
     assert (bundle_dir / "raw" / "samples.csv").is_file()
+    sync_description = report["manifest"]["recording"]["sensor_sync_method"]
+    assert "r2s_align.py" not in sync_description
+    assert "test fixture" in sync_description
+
+
+def test_generated_task_separates_remote_requests_from_local_paired_execution(tmp_path):
+    fixture = _write_capture(tmp_path / "capture")
+    report = bridge.export_capture(
+        fixture["root"], meta_path=fixture["meta"], out_root=tmp_path / "experiment",
+        bundle_id="r2s-task-contract", joints=("MFJ2", "MFJ3"), split="train",
+        tolerances={"angle_deg": 2.0, "motor_angle_deg": 3.0, "tension_N": 1.0},
+    )
+    task = json.loads((Path(report["bundle_dir"]) / "TASK.json").read_text())
+    assert task["remote"]["result_dir"] == "real2sim/results/r2s-task-contract"
+    assert task["remote"]["staging_dir"] == "real2sim/results/.staging/r2s-task-contract.partial"
+    contract = task["result_contract"]["next_data_request"]
+    assert "profile" not in contract["experiment_fields"]
+    assert set(contract["experiment_fields"]) == {"id", "joints", "repeats", "purpose"}
+    separate = contract["execution_modes"]["separate"]
+    paired = contract["execution_modes"]["paired"]
+    assert "profile" in separate["required_fields"]
+    assert "profile" not in paired["required_fields"]
+    assert "pair_plan" in paired["required_fields"]
+    assert paired["pair_plan_schema"] == "real2sim-pair-plan-v1"
+    assert paired["joint_order"] == ["MFJ2", "MFJ3"]
+    assert contract["semantic_request"]["local_preparation_required"] is True
+
+
+@pytest.mark.parametrize("intent", ["transport_selftest", "calibration"])
+def test_remote_prompt_uses_concrete_remote_staging_without_requiring_local_workspace(intent):
+    prompt = bridge.build_remote_task_prompt(
+        bundle_id="r2s-prompt", remote_bundle_dir="/srv/sim/real2sim/experiment/r2s-prompt",
+        remote_result_dir="/srv/sim/real2sim/results/r2s-prompt", intent=intent,
+        split="train", tolerances={"angle_deg": 2, "motor_angle_deg": 3, "tension_N": 1},
+    )
+    assert "/srv/sim/real2sim/results/.staging/r2s-prompt.partial" in prompt
+    assert "<bundle_id>" not in prompt
+    assert "embedding_ws" in prompt and "无需" in prompt
+    if intent == "calibration":
+        assert "execution_mode=paired" in prompt and "pair_plan" in prompt
+        assert "requested_conditions" in prompt
+        assert "每项至少包含 id、joints、profile" not in prompt
 
 
 def test_remote_verify_and_result_publish(tmp_path):
@@ -207,3 +254,179 @@ def test_remote_verify_and_result_publish(tmp_path):
     )
     assert published.returncode == 0, published.stdout + published.stderr
     assert (fake_root / "real2sim" / "results" / source.name / "RESULT_READY.json").is_file()
+
+
+@pytest.mark.parametrize("speed_deg_s", [15.0, 360.0])
+@pytest.mark.parametrize("center_deg", [2.5, 90.0])
+def test_request_plan_preserves_float_boundaries(tmp_path, speed_deg_s, center_deg):
+    request_path = tmp_path / "request.json"
+    amplitude = math.nextafter(0.1, 0.0)
+    request_path.write_text(
+        json.dumps(
+            {
+                "experiments": [
+                    {
+                        "joints": ["MFJ3"],
+                        "profile": "hold",
+                        "center_deg": center_deg,
+                        "amplitude_rad": amplitude,
+                        "speed_cap_deg_s": speed_deg_s,
+                        "duration_s": 1.234567890123,
+                        "frequency_hz": 0.123456789,
+                        "end_frequency_hz": 1.23456789,
+                        "rate_hz": 20.123456789,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = _plan_requests(request_path, tmp_path / "plan", r2s_root=tmp_path, effort_raw=500)
+    script = Path(result["script"]).read_text(encoding="utf-8")
+    command = shlex.split(next(line for line in script.splitlines() if line.startswith("python3 ")))
+    assert "--execute" not in command
+
+    def argument(option):
+        return float(command[command.index(option) + 1])
+
+    plan = result["plan"][0]
+    assert argument("--speed-limit-rad-s") == plan["speed_limit_rad_s"]
+    assert math.radians(15.0) <= argument("--speed-limit-rad-s") <= math.radians(360.0)
+    assert argument("--center-rad") == plan["center_rad"]
+    assert math.radians(2.5) <= argument("--center-rad") <= math.radians(90.0)
+    assert argument("--amplitude-rad") == amplitude
+    assert argument("--duration-s") == 1.234567890123
+    assert argument("--frequency-hz") == 0.123456789
+    assert argument("--end-frequency-hz") == 1.23456789
+    assert argument("--rate-hz") == 20.123456789
+
+
+def test_paired_request_preserves_one_atomic_command_and_plan(tmp_path):
+    pair_plan = {
+        "schema": "real2sim-pair-plan-v1",
+        "joint_order": ["MFJ2", "MFJ3"],
+        "metadata": {"experiment_id": "joint-grid-1", "family": "joint_grid", "split": "train"},
+        "points": [
+            {"offset_ns": 0, "phase": "start", "positions_rad": [0.2, 0.3],
+             "speed_limits_rad_s": [math.radians(15), math.radians(360)]},
+            {"offset_ns": 1000000000, "phase": "end", "positions_rad": [0.4, 0.5],
+             "speed_limits_rad_s": [math.radians(15), math.radians(360)]},
+        ],
+    }
+    request = tmp_path / "request.json"
+    request.write_text(json.dumps({"experiments": [{"id": "joint-grid-1", "joints": ["MFJ2", "MFJ3"],
+                        "execution_mode": "paired", "pair_plan": pair_plan, "repeats": 2}]}))
+    record = _plan_requests(request, tmp_path / "out", r2s_root=tmp_path / "embedding", effort_raw=500)
+    lines = [line for line in Path(record["script"]).read_text().splitlines() if line.startswith("python3 ")]
+    assert len(lines) == 2  # one paired message per repeat, never two single-joint commands
+    for repeat, line in enumerate(lines, 1):
+        command = shlex.split(line)
+        assert command[1] == "tools/r2s_pair_run.py"
+        assert "--execute" not in command and "--joint" not in command
+        assert command[command.index("--effort-raw") + 1] == "500"
+        saved = json.loads(Path(command[command.index("--plan") + 1]).read_text())
+        assert saved["points"] == pair_plan["points"]
+        assert saved["metadata"] == {**pair_plan["metadata"],
+            "experiment_id": f"joint-grid-1-r{repeat:02d}", "repeat": repeat,
+            "source_experiment_id": "joint-grid-1"}
+    assert all(item["execution_mode"] == "paired" for item in record["plan"])
+    assert json.loads(Path(record["plan"][0]["source_pair_plan"]).read_text()) == pair_plan
+
+
+@pytest.mark.parametrize("patch", [
+    {"execution_mode": "paired"},
+    {"execution_mode": "paired", "pair_plan": {"schema": "wrong"}},
+    {"execution_mode": "unknown"},
+])
+def test_request_never_silently_downgrades_invalid_paired_plan(tmp_path, patch):
+    request = tmp_path / "request.json"
+    request.write_text(json.dumps({"experiments": [{"joints": ["MFJ2", "MFJ3"], **patch}]}))
+    with pytest.raises(bridge.BridgeError):
+        _plan_requests(request, tmp_path / "out", r2s_root=tmp_path / "embedding", effort_raw=0)
+
+
+@pytest.mark.parametrize("repeats", [0, -1, 101, True, 1.5, "2"])
+def test_paired_request_rejects_ambiguous_repeats(tmp_path, repeats):
+    request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
+    request["experiments"][0]["repeats"] = repeats
+    path = tmp_path / "request.json"
+    path.write_text(json.dumps(request))
+    with pytest.raises(bridge.BridgeError, match="repeats must be an integer"):
+        _plan_requests(path, tmp_path / "out", r2s_root=tmp_path, effort_raw=500)
+
+
+def test_pair_payload_implies_paired_mode_but_forbids_separate_override(tmp_path):
+    request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
+    experiment = request["experiments"][0]
+    del experiment["execution_mode"]
+    path = tmp_path / "request.json"
+    path.write_text(json.dumps(request))
+    record = _plan_requests(path, tmp_path / "auto", r2s_root=tmp_path, effort_raw=500)
+    assert record["plan"][0]["execution_mode"] == "paired"
+    experiment["execution_mode"] = "separate"
+    path.write_text(json.dumps(request))
+    with pytest.raises(bridge.BridgeError, match="cannot be split silently"):
+        _plan_requests(path, tmp_path / "separate", r2s_root=tmp_path, effort_raw=500)
+
+
+@pytest.mark.parametrize("mode", ["separate", "paired"])
+def test_semantic_requests_require_local_preparation_before_any_plan_output(tmp_path, mode):
+    request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
+    semantic = {"id": "requested-state", "joints": ["MFJ2", "MFJ3"],
+                "execution_mode": mode, "local_preparation_required": True,
+                "requested_conditions": {"target_deg": [45, 45], "joint_speed_deg_s": [30, -60]},
+                "purpose": "A missing coupled state needs local trajectory design"}
+    request["experiments"].append(semantic)  # Do not even emit the earlier valid paired payload.
+    path = tmp_path / "request.json"
+    path.write_text(json.dumps(request))
+    out = tmp_path / "plans"
+    with pytest.raises(bridge.BridgeError, match="hardware-host agent.*prepare"):
+        _plan_requests(path, out, r2s_root=tmp_path / "embedding", effort_raw=500)
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("mode", ["separate", "paired"])
+def test_relative_request_output_stays_at_requested_location_after_script_changes_directory(tmp_path, monkeypatch, mode):
+    monkeypatch.chdir(tmp_path)
+    workspace = tmp_path / "hardware workspace"
+    (workspace / "tools").mkdir(parents=True)
+    runner = """import argparse, json
+from pathlib import Path
+parser = argparse.ArgumentParser()
+parser.add_argument('--out', type=Path, required=True)
+args, _ = parser.parse_known_args()
+args.out.mkdir(parents=True, exist_ok=False)
+(args.out / 'location.json').write_text(json.dumps({'cwd': str(Path.cwd()), 'out': str(args.out.resolve())}))
+"""
+    (workspace / "tools" / ("r2s_pair_run.py" if mode == "paired" else "r2s_run.py")).write_text(runner)
+    if mode == "paired":
+        request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
+    else:
+        request = {"experiments": [{"id": "hold", "joints": ["MFJ2"], "profile": "hold",
+                                    "center_deg": 20, "speed_cap_deg_s": 15}]}
+    Path("request.json").write_text(json.dumps(request))
+    record = _plan_requests(Path("request.json"), Path("output plans"),
+                            r2s_root=Path("hardware workspace"), effort_raw=500)
+    other_cwd = tmp_path / "another caller"
+    other_cwd.mkdir()
+    result = subprocess.run(["bash", str(record["script"])], cwd=other_cwd, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    output = Path(record["plan"][0]["output"])
+    assert output.is_absolute() and output.parent == tmp_path / "output plans"
+    observed = json.loads((output / "location.json").read_text())
+    assert observed == {"cwd": str(workspace), "out": str(output)}
+
+
+def test_distinct_request_ids_cannot_alias_the_same_output_path(tmp_path):
+    request = json.loads((PROJECT_ROOT / "bridge/next_data_request_pair.example.json").read_text())
+    first = request["experiments"][0]
+    first["id"] = "joint/condition"
+    second = json.loads(json.dumps(first))
+    second["id"] = "joint condition"
+    request["experiments"].append(second)
+    path = tmp_path / "request.json"
+    path.write_text(json.dumps(request))
+    out = tmp_path / "plans"
+    with pytest.raises(bridge.BridgeError, match="IDs.*collide"):
+        _plan_requests(path, out, r2s_root=tmp_path / "embedding", effort_raw=500)
+    assert not out.exists()
