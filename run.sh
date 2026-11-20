@@ -14,8 +14,14 @@ cd -- "$project_dir"
 operation="${1:-help}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "$operation" in
-  replay|curves|sweep|data|parameters|evaluate|fit)
+  replay|curves|sweep|data|parameters|evaluate|fit|bridge)
     exec "$runtime_python" -m "botyard_real2sim.cli.$operation" "$@"
+    ;;
+  bridge-verify)
+    exec python3 "$project_dir/bridge/remote_verify.py" "$@"
+    ;;
+  bridge-result)
+    exec python3 "$project_dir/bridge/remote_publish_result.py" "$@"
     ;;
   test)
     export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
@@ -26,12 +32,13 @@ case "$operation" in
     exec "$runtime_python" -m ruff format --check src scripts tests
     ;;
   help|-h|--help)
-    echo '用法：./run.sh {replay|curves|sweep|data|parameters|evaluate|fit|test|check} [参数]'
+    echo '用法：./run.sh {replay|curves|sweep|data|parameters|evaluate|fit|bridge|bridge-verify|bridge-result|test|check} [参数]'
     echo '示例：./run.sh replay --gui --joint FFJ2 --target-deg 20 --duration 2 --out logs/demo/sim.csv'
     echo '示例：./run.sh data --manifest datasets/run/manifest.json --strict'
     echo '示例：./run.sh parameters --config configs/real2sim/s1.yaml'
     echo '示例：./run.sh evaluate --real datasets/run/capture.csv --sim logs/run/sim.csv --joints FFJ2 --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1'
     echo '示例：./run.sh fit --help'
+    echo '示例：python3 scripts/real2sim_bridge.py doctor  # 本地桥，系统 python 即可'
     ;;
   *)
     echo "未知操作：$operation；运行 ./run.sh --help 查看用法。" >&2

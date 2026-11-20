@@ -193,6 +193,24 @@ PYTHONPATH=$PWD/src ~/IsaacLab/.venv/bin/python scripts/real2sim_curves.py \
 4. 以未用于拟合的幅度、速度和同指组合验证关节角、电机角与张力三类曲线。
 5. 固定未经辨识的强相关参数，分别检查数值耗散与物理耗散；仅在残差支持时增加更复杂的三维接触模型。
 
+## 本地 ↔ 远程数据同步桥
+
+真机采集与远程 PhysX/拟合分离时，使用 `experiment/` 数据包和 `real2sim/experiment/` 对接。数据包先上传到远程 `.staging`，由 `remote_verify.py` 复核 SHA256、`BUNDLE.json`、manifest/CSV 哈希并运行 `./run.sh data --strict`，通过后才写 `READY.json` 并原子改名为正式目录；远程结果同样先写 `results/.staging`，再由 `remote_publish_result.py` 原子发布。远程 agent 只读 `experiment/`，结果写 `results/`，缺失数据写入 `next_data_request.json`。
+
+```bash
+cd /home/botyard/real2sim/botyard_real2sim
+python3 scripts/real2sim_bridge.py doctor
+python3 scripts/real2sim_bridge.py build-capture <raw-run> --meta <capture_meta.json> \
+  --joints MFJ2 MFJ3 --split train \
+  --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1
+python3 scripts/real2sim_bridge.py verify <bundle_id>
+python3 scripts/real2sim_bridge.py publish <bundle_id>
+python3 scripts/real2sim_bridge.py notify <bundle_id> --timeout-s 3600
+python3 scripts/real2sim_bridge.py results show <bundle_id>
+```
+
+完整契约（bundle/result/next-data、目录、密钥、故障处理）见 [REAL2SIM_BRIDGE.md](REAL2SIM_BRIDGE.md)。桥只证明传输与数据完整性，不证明物理模型已标定。
+
 ## 检查
 
 纯逻辑检查不启动 Isaac Sim：

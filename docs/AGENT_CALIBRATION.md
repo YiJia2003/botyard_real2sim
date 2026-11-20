@@ -1,6 +1,6 @@
 # Agent Calibration Workflow
 
-This document is the operating procedure for agents and engineers using the current real2sim tools. The repository skill at `.agents/skills/real2sim-calibration/SKILL.md` routes agents here for the detailed workflow. Codex can read the project skill through `AGENTS.md`; DeepSeek Harness can use the same path when its runtime loads repository skills and `AGENTS.md`, though automatic loading is not verified here.
+This document is the operating procedure for agents and engineers using the current real2sim tools. Local-to-remote data handoff uses the staging/READY bundle protocol in [REAL2SIM_BRIDGE.md](REAL2SIM_BRIDGE.md); the remote side must only consume bundles with `READY.json` and must publish results with `real2sim/bridge/remote_publish_result.py`. The repository skill at `.agents/skills/real2sim-calibration/SKILL.md` routes agents here for the detailed workflow. Codex can read the project skill through `AGENTS.md`; DeepSeek Harness can use the same path when its runtime loads repository skills and `AGENTS.md`, though automatic loading is not verified here.
 
 ## 1. Qualify the recording
 

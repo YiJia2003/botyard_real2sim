@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "protocol": "botyard-real2sim-bridge/v1",
+  "bundle_id": "r2s-20261120T080141Z-selftest",
+  "intent": "transport_selftest",
+  "status": "acknowledged",
+  "processed_at_utc": "2026-11-20T08:03:00Z",
+  "remote": {
+    "project_root": "/home/cyj/botyard_real2sim",
+    "bundle_read_from": "/home/cyj/botyard_real2sim/real2sim/experiment/r2s-20261120T080141Z-selftest",
+    "experiment_writes": "none",
+    "host_user": "cyj"
+  },
+  "received": {
+    "dataset_id": "r2s-20261120T080141Z-selftest",
+    "split": "test",
+    "joints": [
+      "MFJ2",
+      "MFJ3"
+    ],
+    "tolerances": {
+      "angle_deg": 2.0,
+      "motor_angle_deg": 3.0,
+      "tension_N": 1.0
+    },
+    "data_kind": "synthetic_transport_selftest",
+    "declared_rows": 1001,
+    "declared_duration_s": 2.0,
+    "declared_command_events": 42
+  },
+  "checks": {
+    "control_files_present": {
+      "ok": true,
+      "files": [
+        "READY.json",
+        "TASK.json",
+        "BUNDLE.json",
+        "manifest.json",
+        "README.md",
+        "SHA256SUMS",
+        "capture.csv"
+      ]
+    },
+    "ready_marker": {
+      "ok": true,
+      "schema_version": 1,
+      "protocol": "botyard-real2sim-bridge/v1",
+      "ok_flag": true,
+      "final_path_matches_bundle_dir": true,
+      "ready_staging_absent_after_rename": true
+    },
+    "checksums": {
+      "ok": true,
+      "method": "sha256sum -c SHA256SUMS",
+      "files_verified": 5,
+      "failed": []
+    },
+    "ready_hash_consistency": {
+      "ok": true,
+      "manifest_sha256": "200931e1eac9a3845a91e882f2a5f2b7c981b9c2c9ec0e85a44059429b299386",
+      "csv_sha256": "b96c1aef67b00ef0538e26f1e4e70e093d5fe69b37b2800c55759746f9958f56",
+      "bundle_record_sha256": "ea1a3d6dc71eeeaca3d42c1259f930bad8908c1ad8c5dbc94229f009e051ca09",
+      "all_match_sha256sums": true
+    },
+    "bundle_record_consistency": {
+      "ok": true,
+      "file_count_matches_payload_listing": true,
+      "task_sha256_matches_TASK_json": true,
+      "byte_sizes_match": true
+    },
+    "manifest_csv_hash": {
+      "ok": true,
+      "manifest_recording_sha256_equals_capture_sha256": true
+    },
+    "strict_dataset_validation": {
+      "ok": true,
+      "command": "./run.sh data --manifest <bundle>/manifest.json --strict",
+      "exit_code": 0,
+      "status": "evaluation_ready",
+      "valid": true,
+      "data_ready": true,
+      "fit_ready": false,
+      "evaluation_ready": true,
+      "errors": [],
+      "blocking_reasons": [],
+      "max_sensor_skew_s": 0.001,
+      "max_allowed_sensor_skew_s": 0.002,
+      "fallback_fraction": 1.0,
+      "channel_time_coverage_min": 1.0
+    },
+    "no_symlinks": {
+      "ok": true,
+      "symlinks_found": 0
+    },
+    "read_only_experiment": {
+      "ok": true,
+      "files_created_or_modified_in_bundle": []
+    }
+  },
+  "actions_performed": [
+    "read_bundle_control_files",
+    "verify_sha256sums",
+    "verify_ready_hash_consistency",
+    "validate_dataset_strict",
+    "publish_transport_acknowledgement"
+  ],
+  "actions_not_performed": [
+    "physx_replay",
+    "curve_comparison",
+    "parameter_sweep",
+    "parameter_fit",
+    "model_or_config_change"
+  ],
+  "conclusion": {
+    "transport_ok": true,
+    "bundle_intact": true,
+    "dataset_structurally_valid": true,
+    "summary": "Bridge transport verified end to end: READY marker, checksums, manifest/CSV hash and strict dataset validation all consistent. No simulation or fitting was run."
+  },
+  "evidence_scope": {
+    "result_scope": "transport_acknowledgement_only",
+    "hardware_evidence": false,
+    "calibrated_model_claim_allowed": false,
+    "note": "The bundle declares itself a synthetic transport self-test fixture; it must not be used as hardware evidence, fit data, or a validation split."
+  },
+  "next_data_request": "next_data_request.json"
+}

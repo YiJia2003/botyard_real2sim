@@ -25,6 +25,7 @@ botyard-data = "botyard_real2sim.cli.data:main"
 botyard-parameters = "botyard_real2sim.cli.parameters:main"
 botyard-evaluate = "botyard_real2sim.cli.evaluate:main"
 botyard-fit = "botyard_real2sim.cli.fit:main"
+botyard-bridge = "botyard_real2sim.cli.bridge:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/botyard_real2sim"]
@@ -33,7 +34,7 @@ packages = ["src/botyard_real2sim"]
 "configs/real2sim" = "botyard_real2sim/presets"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/scripts", "/tests", "/configs", "/docs", "/examples/commands", "/README.md",
+include = ["/src", "/scripts", "/tests", "/bridge", "/configs", "/docs", "/examples/commands", "/README.md",
            "/LICENSE", "/EXTRACTION_MANIFEST.json", "/pyproject.toml", "/.gitignore", "/AGENTS.md", "/.agents",
            "/third_party"]
 

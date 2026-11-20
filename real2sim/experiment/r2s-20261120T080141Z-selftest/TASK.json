@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "protocol": "botyard-real2sim-bridge/v1",
+  "bundle_id": "r2s-20261120T080141Z-selftest",
+  "intent": "transport_selftest",
+  "created_at_utc": "2026-11-20T08:01:41Z",
+  "split": "test",
+  "joints": [
+    "MFJ2",
+    "MFJ3"
+  ],
+  "requested_actions": [
+    "validate_dataset",
+    "acknowledge_transport"
+  ],
+  "tolerances": {
+    "angle_deg": 2.0,
+    "motor_angle_deg": 3.0,
+    "tension_N": 1.0
+  },
+  "remote": {
+    "read_only_experiment": true,
+    "result_dir": "results/r2s-20261120T080141Z-selftest",
+    "staging_dir": "results/.staging/r2s-20261120T080141Z-selftest.partial",
+    "publish_with": "real2sim/bridge/remote_publish_result.py",
+    "ready_marker": "RESULT_READY.json",
+    "next_data_request": "next_data_request.json"
+  },
+  "notes": "Transport self-test only. Verify READY/checksums and publish an acknowledgement result; do not run PhysX or fit."
+}

@@ -71,6 +71,30 @@ agent 标定入口见[项目 skill 路由](.agents/skills/real2sim-agent-router/
 
 拟合阈值与参数边界必须有测量或实验依据。fit 会报告训练/验证基线与逐通道结果；留出集通过显式容差且相对留出基线改善后才接受为曲线拟合候选，这仍不等于已证明物理模型完成真机标定。
 
+## 本地 ↔ 远程数据桥（real2sim experiment）
+
+真机采集在本机、PhysX/拟合在远程时，用 `experiment/` 数据包和 `real2sim/experiment/` 对接。桥保证**先上传到 staging、复核哈希与 manifest、写 READY、再原子改名**，远程只消费 `READY.json` 存在的包；远程结果同样先 staging 再发布。
+
+```bash
+cd /home/botyard/real2sim/botyard_real2sim
+
+# 本机只需 Python 3.12 + ssh + rsync；不需要 Isaac 环境
+python3 scripts/real2sim_bridge.py doctor
+
+# 原始采集目录 -> 数据包（需要 capture_meta.json，显式容差）
+python3 scripts/real2sim_bridge.py build-capture \
+  /home/botyard/real2sim/embedding_ws/runs/<run> \
+  --meta /path/to/capture_meta.json --joints MFJ2 MFJ3 --split train \
+  --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1
+
+python3 scripts/real2sim_bridge.py verify <bundle_id>
+python3 scripts/real2sim_bridge.py publish <bundle_id>
+python3 scripts/real2sim_bridge.py notify <bundle_id> --timeout-s 3600
+python3 scripts/real2sim_bridge.py results show <bundle_id>
+```
+
+远程目录、bundle/result/next-data 契约、staging 生命周期、SSH 密钥与故障处理见 [数据桥文档](docs/REAL2SIM_BRIDGE.md)。本地目录说明见 `/home/botyard/real2sim/experiment/README.md`。
+
 ## 修改和扫描参数
 
 默认使用 [configs/real2sim/s1.yaml](configs/real2sim/s1.yaml)。它启用变力臂几何和有状态动态走线模型；[default.yaml](configs/real2sim/default.yaml) 保留旧准静态分支，仅用于复现旧实验。
@@ -109,10 +133,11 @@ src/botyard_real2sim/
   assets/data/hand/boya.usda                          本地手部资产
   cli/replay.py, curves.py, sweep.py                  回放、曲线和扫描入口
   cli/data.py, parameters.py, evaluate.py, fit.py     agent 数据/参数/评分/拟合入口
+  cli/bridge.py, bridge/, scripts/real2sim_bridge.py  本地↔远程 staging/READY 数据桥
 configs/real2sim/                                    调试参数
 scripts/                                            兼容脚本入口
 tests/                                              real2sim 测试
-docs/                                               方程、运行说明、绕线图片、STEP、CAD 测量证据
+docs/                                               方程、运行说明、数据桥、绕线图片、STEP、CAD 证据
 examples/commands/                                  生成的指令示例
 examples/reference_runs/                            提取时的历史仿真曲线和数值检查
 ```

@@ -12,6 +12,7 @@ This repository calibrates an unloaded tendon-driven hand against synchronized r
 - `./run.sh evaluate ...` scores a replay with explicit channel tolerances and quality gates.
 - `./run.sh fit ...` runs bounded training-set fitting and held-out validation; install `.[calibration]` for SciPy.
 - `./run.sh test` runs the project tests; `./run.sh check` runs Ruff checks.
+- `python3 scripts/real2sim_bridge.py ...` builds/verifies/publishes real2sim data bundles to the remote host; see [docs/REAL2SIM_BRIDGE.md](docs/REAL2SIM_BRIDGE.md). Use `build-capture`/`publish`/`notify`; never hand-edit a ready bundle.
 
 Use the configured Isaac Lab interpreter. Unit tests and curve comparisons do not prove real-hardware calibration or full PhysX convergence.
 
