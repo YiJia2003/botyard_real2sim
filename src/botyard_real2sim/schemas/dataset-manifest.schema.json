@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://botyard-real2sim.local/schemas/dataset-manifest.schema.json",
+  "title": "Botyard real2sim dataset manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "split",
+    "robot",
+    "firmware",
+    "recording",
+    "joints",
+    "signals",
+    "experiment"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "dataset_id": { "type": "string", "minLength": 1 },
+    "split": { "enum": ["train", "validation", "test"] },
+    "robot": {
+      "type": "object",
+      "required": ["id", "hardware_revision"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "hardware_revision": { "type": "string", "minLength": 1 }
+      }
+    },
+    "firmware": {
+      "type": "object",
+      "required": ["version", "control_mode", "fallback_confirmed"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1 },
+        "control_mode": { "type": "string", "minLength": 1 },
+        "fallback_confirmed": { "type": "boolean" },
+        "fallback_evidence": { "type": "string" }
+      }
+    },
+    "recording": {
+      "type": "object",
+      "required": ["csv", "sha256", "source_recording_id", "source_sha256", "timestamp_column", "clock_id", "command_semantics", "command_time_source"],
+      "properties": {
+        "csv": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "source_recording_id": { "type": "string", "minLength": 1 },
+        "source_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "timestamp_column": { "enum": ["timestamp_ns", "time_s"] },
+        "clock_id": { "type": "string", "minLength": 1 },
+        "command_semantics": { "enum": ["send_events", "sampled_state"] },
+        "command_time_source": { "enum": ["explicit_send_time", "row_timestamp"] },
+        "sensor_sync_method": { "type": "string" },
+        "max_sensor_skew_s": { "type": "number", "minimum": 0 },
+        "max_sensor_skew_source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "joints": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "signals": {
+      "type": "object",
+      "required": ["position", "motor_position", "tension", "commands"],
+      "properties": {
+        "position": { "$ref": "#/$defs/position" },
+        "motor_position": { "$ref": "#/$defs/motorPosition" },
+        "tension": { "$ref": "#/$defs/tension" },
+        "commands": { "$ref": "#/$defs/commands" }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": ["protocol", "root_pose", "prehistory"],
+      "properties": {
+        "protocol": { "type": "string", "minLength": 1 },
+        "root_pose": {
+          "type": "object",
+          "required": ["position_m", "quaternion_xyzw"],
+          "properties": {
+            "position_m": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+            "quaternion_xyzw": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "number" } }
+          }
+        },
+        "prehistory": {
+          "type": "object",
+          "required": ["recorded", "duration_s", "initial_state_source"],
+          "properties": {
+            "recorded": { "type": "boolean" },
+            "duration_s": { "type": "number", "minimum": 0 },
+            "initial_state_source": { "type": "string", "minLength": 1 },
+            "notes": { "type": "string" }
+          }
+        },
+        "load_condition": { "type": "string" },
+        "temperature_c": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "quality_gates": {
+      "type": "object",
+      "properties": {
+        "min_samples": { "type": "integer", "minimum": 2 },
+        "min_duration_s": { "type": "number", "exclusiveMinimum": 0 },
+        "min_channel_coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_gap_s": { "type": "number", "exclusiveMinimum": 0 },
+        "max_sensor_skew_s": { "type": "number", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "calibration": {
+      "type": "object",
+      "required": ["by_joint"],
+      "properties": {
+        "by_joint": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/calibrationEntry" }
+        }
+      }
+    },
+    "calibrationEntry": {
+      "type": "object",
+      "required": ["status", "source"],
+      "properties": {
+        "status": { "enum": ["applied", "not_applied", "unknown"] },
+        "source": { "type": "string", "minLength": 1 },
+        "calibration_id": { "type": "string" },
+        "scale_applied": { "type": "number" },
+        "offset_applied": { "type": "number" },
+        "sign_applied": { "enum": [-1, 1] }
+      }
+    },
+    "motorTransform": {
+      "type": "object",
+      "required": ["gear_ratio", "encoder_sign", "unwrapped", "gear_ratio_applied"],
+      "properties": {
+        "gear_ratio": { "type": "number", "exclusiveMinimum": 0 },
+        "encoder_sign": { "enum": [-1, 1] },
+        "unwrapped": { "type": "boolean" },
+        "gear_ratio_applied": { "type": "boolean" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": ["suffix", "unit"],
+      "properties": {
+        "suffix": { "const": "position_rad" },
+        "unit": { "const": "rad" },
+        "calibration": { "$ref": "#/$defs/calibration" }
+      }
+    },
+    "motorPosition": {
+      "type": "object",
+      "required": ["suffix", "unit"],
+      "properties": {
+        "suffix": { "const": "motor_position_rad" },
+        "unit": { "const": "rad" },
+        "semantics": { "const": "unwrapped_spool_output_angle" },
+        "calibration": { "$ref": "#/$defs/calibration" },
+        "transforms_by_joint": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/motorTransform" }
+        }
+      }
+    },
+    "tension": {
+      "type": "object",
+      "required": ["suffix", "unit"],
+      "properties": {
+        "suffix": { "const": "tension_N" },
+        "unit": { "const": "N" },
+        "sensor_location": { "const": "motor_side_before_routing" },
+        "calibration": { "$ref": "#/$defs/calibration" }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "required": ["angle_suffix", "speed_suffix", "third_field_suffix"],
+      "properties": {
+        "angle_suffix": { "const": "cmd_rad" },
+        "speed_suffix": { "const": "cmd_speed_rad_s" },
+        "third_field_suffix": { "enum": ["cmd_tension_N", "cmd_tension_command_N"] },
+        "third_field_semantics": { "const": "fallback_tension_command_not_enforced_limit" }
+      }
+    }
+  }
+}

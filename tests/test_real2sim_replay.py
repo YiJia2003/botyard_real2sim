@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import math
 import subprocess
 import sys
@@ -56,6 +57,52 @@ def test_export_cli_never_imports_isaac_or_torch(tmp_path):
     assert config.tendon.spring_preload_nm[1] == 0
     assert config.controller.startup_pair_evaluations == 50
     assert config.controller.control_period_s == 0.003
+
+
+def test_source_provenance_hashes_model_files_asset_and_dirty_state(tmp_path, monkeypatch):
+    from botyard_real2sim.cli import replay as replay_module
+
+    package_root = tmp_path / "src/botyard_real2sim"
+    (package_root / "cli").mkdir(parents=True)
+    (package_root / "assets/data/hand").mkdir(parents=True)
+    (package_root / "model.py").write_text("model = 1\n", encoding="utf-8")
+    (package_root / "cli/replay.py").write_text("replay = 1\n", encoding="utf-8")
+    (package_root / "assets/data/hand/boya.usda").write_bytes(b"asset")
+    git_outputs = {"diff": "", "status": ""}
+
+    def fake_run(argv, **kwargs):
+        command = "diff" if argv[1] == "diff" else "status"
+        return subprocess.CompletedProcess(argv, 0, stdout=git_outputs[command], stderr="")
+
+    monkeypatch.setattr(replay_module.subprocess, "run", fake_run)
+    clean = replay_module._source_provenance(repository_root=tmp_path)
+    assert list(clean["model_source_files"]) == ["cli/replay.py", "model.py"]
+    assert clean["model_source_sha256"]
+    assert clean["usd_asset_sha256"] == hashlib.sha256(b"asset").hexdigest()
+    assert clean["source_worktree_dirty"] is False
+    assert clean["source_diff_sha256"] is None
+
+    git_outputs.update(diff="model diff", status=" M src/botyard_real2sim/model.py\n")
+    dirty = replay_module._source_provenance(repository_root=tmp_path)
+    assert dirty["source_worktree_dirty"] is True
+    assert dirty["source_diff_sha256"]
+    assert dirty["model_source_sha256"] == clean["model_source_sha256"]
+
+
+def test_source_provenance_preserves_hashes_when_git_is_unavailable(tmp_path, monkeypatch):
+    from botyard_real2sim.cli import replay as replay_module
+
+    package_root = tmp_path / "src/botyard_real2sim"
+    package_root.mkdir(parents=True)
+
+    def unavailable(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 128, stdout="", stderr="not a git repository")
+
+    monkeypatch.setattr(replay_module.subprocess, "run", unavailable)
+    provenance = replay_module._source_provenance(repository_root=tmp_path)
+    assert provenance["model_source_sha256"]
+    assert provenance["source_worktree_dirty"] is None
+    assert provenance["source_diff_sha256"] is None
 
 
 def test_named_joint_finger_and_scalar_overrides_preserve_original():

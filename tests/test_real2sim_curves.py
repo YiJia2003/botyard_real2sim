@@ -187,6 +187,51 @@ def test_comparison_does_not_extrapolate_past_simulation(tmp_path: Path):
     result = curves.compare_series([0, 0.1, 0.2], [0, 0, 100], [0, 0.1], [0, 0], scale=1, options=options)
     assert result["samples"] == 2
     assert result["rmse"] == 0
+    assert result["eligible_duration_s"] == pytest.approx(0.2)
+    assert result["recording_duration_s"] == pytest.approx(0.2)
+    assert result["real_data_coverage_ratio"] == pytest.approx(1.0)
+    assert result["valid_duration_s"] == pytest.approx(0.1)
+    assert result["coverage_ratio"] == pytest.approx(0.5)
+
+
+def test_sparse_sim_endpoints_do_not_count_as_time_coverage():
+    options = curves.CurveOptions(alignment="start", max_interp_gap_s=0.1)
+    real_time = [index / 100 for index in range(101)]
+    result = curves.compare_series(real_time, [0.0] * len(real_time), [0, 1], [0, 0], scale=1, options=options)
+
+    assert result is not None
+    assert result["samples"] == 2
+    assert result["overlap_s"] == pytest.approx(1.0)
+    assert result["eligible_duration_s"] == pytest.approx(1.0)
+    assert result["recording_duration_s"] == pytest.approx(1.0)
+    assert result["real_data_coverage_ratio"] == pytest.approx(1.0)
+    assert result["valid_duration_s"] == pytest.approx(0.0)
+    assert result["coverage_ratio"] == pytest.approx(0.0)
+
+
+def test_coverage_uses_only_finite_real_intervals_and_is_null_without_duration():
+    options = curves.CurveOptions(alignment="start", max_interp_gap_s=0.1)
+    result = curves.compare_series(
+        [0, 0.05, 0.1, 0.15, 0.2],
+        [0, 0, math.nan, 0, 0],
+        [0, 0.05, 0.1, 0.15, 0.2],
+        [0, 0, 0, 0, 0],
+        scale=1,
+        options=options,
+    )
+    assert result is not None
+    assert result["eligible_duration_s"] == pytest.approx(0.1)
+    assert result["recording_duration_s"] == pytest.approx(0.2)
+    assert result["real_data_coverage_ratio"] == pytest.approx(0.5)
+    assert result["valid_duration_s"] == pytest.approx(0.1)
+    assert result["coverage_ratio"] == pytest.approx(1.0)
+
+    single_sample = curves.compare_series([0], [0], [0], [0], scale=1, options=options)
+    assert single_sample is not None
+    assert single_sample["eligible_duration_s"] == 0
+    assert single_sample["real_data_coverage_ratio"] is None
+    assert single_sample["valid_duration_s"] == 0
+    assert single_sample["coverage_ratio"] is None
 
 
 def test_command_comparison_uses_hold_not_linear_ramp():
@@ -196,6 +241,25 @@ def test_command_comparison_uses_hold_not_linear_ramp():
     )
     assert result["samples"] == 3
     assert result["rmse"] == 0
+
+
+def test_real_data_coverage_uses_full_recording_duration_not_only_finite_spans():
+    options = curves.CurveOptions(alignment="start", max_interp_gap_s=0.1)
+    real_time = [index / 100 for index in range(201)]
+    real_values = [math.nan if 1.0 < time_s < 1.5 else 0.0 for time_s in real_time]
+
+    result = curves.compare_series(
+        real_time,
+        real_values,
+        real_time,
+        [0.0] * len(real_time),
+        scale=1,
+        options=options,
+    )
+
+    assert result is not None
+    assert result["coverage_ratio"] == pytest.approx(1.0)
+    assert result["real_data_coverage_ratio"] == pytest.approx(0.75)
 
 
 def test_model_yaml_without_curves_and_strict_curve_section(tmp_path):

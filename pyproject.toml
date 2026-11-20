@@ -14,12 +14,17 @@ dependencies = ["PyYAML>=6"]
 [project.optional-dependencies]
 model = ["torch>=2.7"]
 curves = ["matplotlib>=3.9", "plotly>=6"]
+calibration = ["scipy>=1.13"]
 dev = ["pytest>=8", "ruff>=0.11"]
 
 [project.scripts]
 botyard-replay = "botyard_real2sim.cli.replay:main"
 botyard-curves = "botyard_real2sim.cli.curves:main"
 botyard-sweep = "botyard_real2sim.cli.sweep:main"
+botyard-data = "botyard_real2sim.cli.data:main"
+botyard-parameters = "botyard_real2sim.cli.parameters:main"
+botyard-evaluate = "botyard_real2sim.cli.evaluate:main"
+botyard-fit = "botyard_real2sim.cli.fit:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/botyard_real2sim"]
@@ -29,7 +34,8 @@ packages = ["src/botyard_real2sim"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/scripts", "/tests", "/configs", "/docs", "/examples/commands", "/README.md",
-           "/LICENSE", "/EXTRACTION_MANIFEST.json", "/pyproject.toml", "/.gitignore"]
+           "/LICENSE", "/EXTRACTION_MANIFEST.json", "/pyproject.toml", "/.gitignore", "/AGENTS.md", "/.agents",
+           "/third_party"]
 
 [tool.ruff]
 line-length = 120

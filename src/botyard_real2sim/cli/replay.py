@@ -295,6 +295,72 @@ def _revision() -> str | None:
         return None
 
 
+def _source_provenance(*, repository_root: Path | None = None) -> dict:
+    """Hash the installed model code and local hand asset, plus source-tree dirtiness.
+
+    The per-file inventory makes uncommitted and untracked Python source visible
+    even though Git's ordinary diff does not include untracked file contents.
+    """
+    root = Path(repository_root) if repository_root is not None else checkout_root()
+    package_root = root / "src/botyard_real2sim" if root is not None else Path(__file__).resolve().parents[1]
+    result = {
+        "model_source_files": None,
+        "model_source_sha256": None,
+        "usd_asset_sha256": None,
+        "source_worktree_dirty": None,
+        "source_diff_sha256": None,
+    }
+    if not package_root.is_dir():
+        return result
+
+    source_files = sorted(package_root.rglob("*.py"))
+    file_hashes = {}
+    tree_hash = hashlib.sha256()
+    for path in source_files:
+        relative_path = path.relative_to(package_root).as_posix()
+        content_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        file_hashes[relative_path] = content_hash
+        tree_hash.update(relative_path.encode("utf-8"))
+        tree_hash.update(b"\0")
+        tree_hash.update(content_hash.encode("ascii"))
+        tree_hash.update(b"\n")
+    result["model_source_files"] = file_hashes
+    result["model_source_sha256"] = tree_hash.hexdigest()
+
+    usd_path = package_root / "assets/data/hand/boya.usda"
+    if usd_path.is_file():
+        result["usd_asset_sha256"] = hashlib.sha256(usd_path.read_bytes()).hexdigest()
+
+    if root is None:
+        return result
+    try:
+        diff = subprocess.run(
+            ["git", "diff", "--binary", "HEAD", "--", "src/botyard_real2sim"],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--", "src/botyard_real2sim"],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+    except OSError:
+        return result
+    if diff.returncode != 0 or status.returncode != 0:
+        return result
+
+    status_text = status.stdout
+    result["source_worktree_dirty"] = bool(status_text)
+    if status_text:
+        digest_input = status_text.encode("utf-8") + b"\0" + diff.stdout.encode("utf-8")
+        result["source_diff_sha256"] = hashlib.sha256(digest_input).hexdigest()
+    return result
+
+
 def _versions():
     """Collect versions of the simulator/runtime packages for the metadata.
 
@@ -565,7 +631,7 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
     # 说明：张力传感器装在电机侧（两段走线摩擦与走线弹簧之前），
     #       而进关节力矩用的是关节侧张力 distal_tension_N。
     metadata = {
-        "schema_version": 3,
+        "schema_version": 4,
         "routing_model": cfg.tendon.routing_model,
         "routing_max_substep_s": cfg.tendon.routing_max_substep_s,
         "tension_sensor_location": "motor-side, before both routing friction zones and the routing spring",
@@ -575,6 +641,7 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
         "status": "running",
         "created_utc": datetime.now(UTC).isoformat(),
         "repository_revision": _revision(),
+        **_source_provenance(),
         "package_versions": _versions(),
         "engine": "isaacsim_physx",
         "actuator_execution": "torch_explicit_effort",

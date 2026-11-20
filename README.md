@@ -1,6 +1,6 @@
 # botyard_real2sim
 
-Botyard 灵巧手的独立空载 real2sim 调试项目。由原项目**当前工作区的最新版本**提取，包含 Fallback 控制、变力臂几何、腱绳走线摩擦、有限行程弹簧与等效惯量、电机角观测，以及实际连接 Isaac Lab / Isaac Sim **PhysX** 的运行入口。
+Botyard 灵巧手的独立空载 real2sim 调试项目。包含 Fallback 控制、变力臂几何、腱绳走线摩擦、有限行程弹簧与等效惯量、电机角观测，以及实际连接 Isaac Lab / Isaac Sim **PhysX** 的运行入口。
 
 运行只需要本项目和已经配置好的 Isaac Lab 环境。手部 USD、关节/引擎配置、测试、S1 绕线图片及 STEP 均已复制到本项目，不从原仓库导入代码或引用原仓库的资产。原项目文件保持不变。
 
@@ -59,6 +59,18 @@ cd /home/cyj/botyard_real2sim
   --duration 2 --out logs/example/sim.csv
 ```
 
+agent 标定入口见[项目 skill 路由](.agents/skills/real2sim-agent-router/SKILL.md)、[标定流程](docs/AGENT_CALIBRATION.md)和仓库级 [real2sim-calibration skill](.agents/skills/real2sim-calibration/SKILL.md)。技能放在 `.agents/skills/`；Codex 可通过仓库指引读取，DeepSeek Harness 可在其运行时加载仓库 `AGENTS.md` 和项目 skills 时使用相同路径。本仓库未验证 DSH 的自动启动加载。先用 `data` 校验含硬件信息和 CSV 哈希的 manifest，再用 `parameters` 检查有效参数；`evaluate` 执行严格评分，`fit` 在明确的参数边界内搜索，并用独立 validation manifest 对比基线：
+
+```bash
+./run.sh data --manifest /data/train/manifest.json --strict
+./run.sh parameters --config configs/real2sim/s1.yaml
+./run.sh evaluate --real /data/train/capture.csv --sim logs/calibration/sim.csv \
+  --joints FFJ2 --tolerance angle_deg=2 --tolerance motor_angle_deg=3 --tolerance tension_N=1
+./run.sh fit --help
+```
+
+拟合阈值与参数边界必须有测量或实验依据。fit 会报告训练/验证基线与逐通道结果；留出集通过显式容差且相对留出基线改善后才接受为曲线拟合候选，这仍不等于已证明物理模型完成真机标定。
+
 ## 修改和扫描参数
 
 默认使用 [configs/real2sim/s1.yaml](configs/real2sim/s1.yaml)。它启用变力臂几何和有状态动态走线模型；[default.yaml](configs/real2sim/default.yaml) 保留旧准静态分支，仅用于复现旧实验。
@@ -95,7 +107,8 @@ src/botyard_real2sim/
   routing_dynamics.py                                摩擦、接触记忆、惯量和硬停止
   simulation/hand_cfg.py, physics.py, ../scene.py      本地 PhysX 适配
   assets/data/hand/boya.usda                          本地手部资产
-  cli/replay.py, curves.py, sweep.py                  三个可安装入口
+  cli/replay.py, curves.py, sweep.py                  回放、曲线和扫描入口
+  cli/data.py, parameters.py, evaluate.py, fit.py     agent 数据/参数/评分/拟合入口
 configs/real2sim/                                    调试参数
 scripts/                                            兼容脚本入口
 tests/                                              real2sim 测试
@@ -121,7 +134,7 @@ uv pip install --python /home/cyj/IsaacLab/.venv/bin/python --no-deps -e .
 /home/cyj/IsaacLab/.venv/bin/botyard-curves --help
 ```
 
-基础安装只依赖 PyYAML。离线建模需要 `[model]` 的 Torch，绘图需要 `[curves]`，测试需要 `[dev]`；启动 PhysX 另需已配置的兼容 Isaac Lab / Isaac Sim 环境，不会通过本包自动安装整套引擎或 RL 依赖。
+基础安装只依赖 PyYAML。离线建模需要 `[model]` 的 Torch，绘图需要 `[curves]`，参数拟合需要 `[calibration]` 的 SciPy，测试需要 `[dev]`；启动 PhysX 另需已配置的兼容 Isaac Lab / Isaac Sim 环境，不会通过本包自动安装整套引擎或 RL 依赖。
 
 CLI 实现位于包内，wheel 包含 S1/旧版参数和手部 USD，安装后可在其他目录使用。源码运行优先读取 `configs/real2sim/s1.yaml`；wheel 运行读取打包预设，实际标定建议通过 `--config` 指定自己的 YAML。
 提取范围、原始文件哈希和适配说明保存在 [EXTRACTION_MANIFEST.json](EXTRACTION_MANIFEST.json)。

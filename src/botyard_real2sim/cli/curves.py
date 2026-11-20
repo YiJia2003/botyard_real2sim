@@ -504,7 +504,7 @@ def compare_series(
     scale: float,
     options: CurveOptions,
     interpolation: str = "linear",
-) -> dict[str, float | int] | None:
+) -> dict[str, float | int | None] | None:
     """Compare at real sample times inside the simulator's valid interpolation range.
 
     【中文】在实机样本时刻上取仿真预测，逐点比较，并汇总误差指标。
@@ -515,7 +515,9 @@ def compare_series(
       scale    —— 显示单位换算系数（rad→deg 为 180/π，N 为 1.0），只影响误差数值的报出单位；
       options  —— 提供 steady_window_s [s] 与 max_interp_gap_s [s]；
       interpolation —— "linear"（连续量）或 "previous"（指令类台阶量，零阶保持）。
-    返回：含 samples/overlap_s/rmse/mae/bias/max_abs/steady_bias/steady_rmse 的字典；
+    返回：误差指标与有效覆盖信息。eligible_duration_s 仅累计实测值两端有限、
+          且实测相邻间隔不超过 max_interp_gap_s 的区间；valid_duration_s 是这些
+          区间中仿真可连续插值的部分。没有 eligible 时 coverage_ratio 为 None。
           两侧任一通道缺失、或没有任何可配对的点时返回 None。
     误差符号约定：err = (sim - real) * scale，即「仿真减实机」。
     """
@@ -539,6 +541,46 @@ def compare_series(
             paired.append((t, (prediction - measurement) * scale))
     if not paired:
         return None
+    # Coverage is measured over eligible real intervals, not by endpoint sample
+    # count. A sparse simulator that happens to contain the first and last real
+    # samples must not claim full time coverage across an interpolation gap.
+    max_gap = options.max_interp_gap_s
+    eligible_intervals = []
+    for index in range(len(real_time) - 1):
+        left_t, right_t = real_time[index], real_time[index + 1]
+        if (
+            right_t - left_t <= max_gap + 1e-12
+            and math.isfinite(real_values[index])
+            and math.isfinite(real_values[index + 1])
+        ):
+            eligible_intervals.append((left_t, right_t))
+    eligible_duration = sum(right - left for left, right in eligible_intervals)
+    recording_duration = real_time[-1] - real_time[0] if len(real_time) > 1 else 0.0
+    real_data_coverage_ratio = eligible_duration / recording_duration if recording_duration > 0 else None
+
+    # Adjacent simulation samples define intervals where interpolation is
+    # available. For held commands only the left sample's value is required.
+    sim_intervals = []
+    for index in range(len(sim_time) - 1):
+        left_t, right_t = sim_time[index], sim_time[index + 1]
+        if right_t - left_t > max_gap + 1e-12 or not math.isfinite(sim_values[index]):
+            continue
+        if interpolation == "linear" and not math.isfinite(sim_values[index + 1]):
+            continue
+        sim_intervals.append((left_t, right_t))
+
+    valid_duration = 0.0
+    sim_index = 0
+    for real_left, real_right in eligible_intervals:
+        while sim_index < len(sim_intervals) and sim_intervals[sim_index][1] <= real_left:
+            sim_index += 1
+        index = sim_index
+        while index < len(sim_intervals) and sim_intervals[index][0] < real_right:
+            sim_left, sim_right = sim_intervals[index]
+            valid_duration += max(0.0, min(real_right, sim_right) - max(real_left, sim_left))
+            index += 1
+
+    coverage_ratio = valid_duration / eligible_duration if eligible_duration > 0 else None
     # ── 误差指标（单位由 scale 决定：deg、N、rad/s 等）──
     errors = [err for _, err in paired]
     # 稳态窗口：以最后一个成功配对的样本为基准向前取 steady_window_s 秒 [s]；
@@ -549,6 +591,11 @@ def compare_series(
     return {
         "samples": len(errors),
         "overlap_s": paired[-1][0] - paired[0][0],
+        "eligible_duration_s": eligible_duration,
+        "recording_duration_s": recording_duration,
+        "real_data_coverage_ratio": real_data_coverage_ratio,
+        "valid_duration_s": valid_duration,
+        "coverage_ratio": coverage_ratio,
         "rmse": math.sqrt(sum(err * err for err in errors) / len(errors)),
         "mae": sum(abs(err) for err in errors) / len(errors),
         "bias": sum(errors) / len(errors),
