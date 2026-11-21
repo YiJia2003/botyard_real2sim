@@ -24,8 +24,11 @@ controller:
   ki_deg_s_per_deg_step: 1.0
   # 微分增益；0.0 表示该分支不启用微分作用。
   kd_deg_s_per_deg_step: 0.0
-  # 目标角限幅 deg（0.5–89.5 deg），避开关节机械端点。
-  min_angle_deg: 0.5
+  # H7 real2sim 目标角下限：仅 MFJ3 为 2.5 deg；不是物理止点。
+  # 来源和普通/历史固件差异见 docs/REAL2SIM_CONTROLLER_SYNC.md。
+  min_angle_deg:
+    default: 0.5
+    MFJ3: 2.5
   max_angle_deg: 89.5
   # 死区 deg：|角误差| 小于该值时误差清零并复位积分。
   dead_zone_deg: 1.0
@@ -48,6 +51,12 @@ controller:
   quantize_output: true
   # 冷启动前每个手指等待的评估次数；0 = 热启动。
   startup_pair_evaluations: 0
+  # G4 real2sim 实验死区为转子侧 200 rad/s（普通固件默认 250）。
+  motor_velocity_deadband_rad_s: 200.0
+  # 转子/绕线轮速度比；死区对应绕线轮 0.25 rad/s。
+  motor_gear_ratio: 800.0
+  # G4 moduleMaxVel 源码默认；录制时 Flash 配置/读回值优先。
+  motor_spool_speed_limit_rad_s: 6.25
 
 # ── 腱绳：常量力臂、材料绳与关节摩擦（无几何路径、无走线动力学）──
 tendon:

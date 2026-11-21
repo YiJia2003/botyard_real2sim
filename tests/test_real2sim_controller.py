@@ -2,11 +2,12 @@
 
 import math
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 import torch
 
-from botyard_real2sim.config import FallbackControllerConfig
+from botyard_real2sim.config import FallbackControllerConfig, load_config
 from botyard_real2sim.controller import FallbackController, autopair_command
 
 pytestmark = pytest.mark.unit
@@ -126,3 +127,23 @@ def test_inactive_mask_freezes_state_and_malformed_inputs_fail():
         ctl.step(q, q, q, active_mask=torch.full_like(q, 2))
     with pytest.raises(ValueError, match="dtype"):
         ctl.step(q.float(), q, q)
+
+
+@pytest.mark.parametrize("preset", ["s1.yaml", "default.yaml"])
+def test_real2sim_presets_apply_middle_j3_preload_floor(preset):
+    cfg = load_config(Path(__file__).resolve().parents[1] / "configs/real2sim" / preset)
+    ctl = FallbackController(cfg.controller, 1, "cpu", dtype=torch.float64)
+    output = ctl.step(vec(0.5), vec(-10), vec(120))
+    # Only MFJ3 clamps to 2.5 deg; its 2 deg error produces 20 deg/s.
+    assert output[0, 5].item() == 0.349
+    assert torch.count_nonzero(output) == 1
+    q = vec(0.5)
+    q[0, 5] = math.radians(2.5)
+    assert not ctl.step(q, vec(-10), vec(120)).any()
+
+
+@pytest.mark.parametrize("error_deg, expected", [(0.99, 0.0), (1.0, 0.279), (1.01, 0.282)])
+def test_h7_angle_dead_zone_is_strict(error_deg, expected):
+    # Zero feedback avoids subtractive roundoff at the exact 1 degree boundary.
+    out = controller().step(vec(0), vec(error_deg), vec(120))
+    assert out[0, 0].item() == expected

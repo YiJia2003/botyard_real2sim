@@ -82,6 +82,11 @@ PYTHONPATH=$PWD/src ~/IsaacLab/.venv/bin/python scripts/real2sim_replay.py \
 
 当前可编辑预设为 [`configs/real2sim/s1.yaml`](../configs/real2sim/s1.yaml)。CAD 尺寸和图片提供的长度有明确来源，弹簧刚度、走线行程及摩擦数值仍为待拟合初值。controller 数值来自当前源码分支，仍需与采集时固件核对。
 
+2026-11-21 控制段已同步到本地 embedded 仓库的 real2sim 实验配置：MFJ3 目标下限
+2.5°、其余 0.5°、角度死区 1°；G4 转子侧速度死区 200 rad/s（速度比 800，对应
+绕线轮 0.25 rad/s），绕线轮速度上限 6.25 rad/s。详见
+[控制器同步记录](REAL2SIM_CONTROLLER_SYNC.md)，其中区分普通构建、历史快照和未建模的驱动器逻辑。
+
 单指阶跃：
 
 ```bash

@@ -352,6 +352,24 @@ _DEFINITIONS = (
         kind="controller",
         tunability="lock_to_verified_firmware",
     ),
+    *(
+        _Definition(
+            "controller",
+            field,
+            unit,
+            description,
+            kind="controller",
+            tunability="lock_to_verified_firmware",
+            provenance="docs/REAL2SIM_CONTROLLER_SYNC.md; verify against the recording's firmware/configuration",
+        )
+        for field, unit, description in (
+            ("min_angle_deg", "deg", "H7 target-angle floor (not a mechanical joint limit)"),
+            ("max_angle_deg", "deg", "H7 target-angle ceiling (not a mechanical joint limit)"),
+            ("motor_velocity_deadband_rad_s", "rad/s (rotor)", "G4 velocity-target deadband; zero disables it"),
+            ("motor_gear_ratio", "1", "G4 rotor-to-spool speed ratio used for the command deadband"),
+            ("motor_spool_speed_limit_rad_s", "rad/s (spool)", "G4 module velocity cap; zero disables it"),
+        )
+    ),
 )
 
 
@@ -430,6 +448,15 @@ def _finger_for_joint(joint: str) -> str:
 
 
 def _activity(spec: _Definition, joint: str | None, config: Real2SimConfig) -> tuple[str, str]:
+    if spec.section == "controller" and spec.field in {
+        "motor_velocity_deadband_rad_s",
+        "motor_gear_ratio",
+        "motor_spool_speed_limit_rad_s",
+    }:
+        field = "motor_velocity_deadband_rad_s" if spec.field == "motor_gear_ratio" else spec.field
+        if getattr(config.controller, field)[JOINT_NAMES.index(joint)] == 0:
+            return "inactive", "The corresponding G4 speed gate is disabled (legacy ideal speed port)."
+        return "active", "Applied by Real2SimRuntime after H7 output quantization, before the tendon speed port."
     tendon = config.tendon
     has_geometry = bool(tendon.geometry.get(_finger_for_joint(joint))) if joint else False
     if spec.field in {"joint_moment_arm_m", "crossing_moment_arm_m"}:

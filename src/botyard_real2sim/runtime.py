@@ -176,6 +176,13 @@ class Real2SimRuntime:
         # ── 控制器输出与运行统计 ──
         # controller_speed_rad_s：控制器本 tick 给出的收绳速度指令 [rad/s]
         self.controller_speed_rad_s = torch.zeros_like(self.target_rad)
+        self._motor_velocity_deadband = torch.as_tensor(
+            cfg.controller.motor_velocity_deadband_rad_s, device=device, dtype=dtype
+        )
+        self._motor_gear_ratio = torch.as_tensor(cfg.controller.motor_gear_ratio, device=device, dtype=dtype)
+        self._motor_spool_speed_limit = torch.as_tensor(
+            cfg.controller.motor_spool_speed_limit_rad_s, device=device, dtype=dtype
+        )
         self.command_count = 0  # 已应用的指令事件个数
         self.controller_lateness_s = 0.0  # 最近一次控制 tick 的迟到量 [s]
 
@@ -329,6 +336,27 @@ class Real2SimRuntime:
         """
         return self.plant.evaluate(q_rad, qd_rad_s)
 
+    @property
+    def motor_target_speed_rad_s(self) -> torch.Tensor:
+        """Spool-side target after G4 deadband and speed cap, before plant lag.
+
+        The H7 request is already quantized. G4 compares its magnitude times
+        gearRadio against a rotor-side threshold using strict '<', then limits
+        the PVR speed. Suppressing the target never resets the H7 integral.
+        Zero configuration values disable the respective gate for old snapshots.
+        This does not model the G4 inner loop, command LPF, or fault protections.
+        """
+        speed = torch.where(
+            self.controller_speed_rad_s.abs() * self._motor_gear_ratio < self._motor_velocity_deadband,
+            torch.zeros_like(self.controller_speed_rad_s),
+            self.controller_speed_rad_s,
+        )
+        return torch.where(
+            self._motor_spool_speed_limit > 0,
+            speed.clamp(min=-self._motor_spool_speed_limit, max=self._motor_spool_speed_limit),
+            speed,
+        )
+
     def advance(self, dt_s: float, q_rad: torch.Tensor | None = None, qd_rad_s: torch.Tensor | None = None) -> None:
         """Advance only the tendon input boundary; backend advances joints.
 
@@ -344,4 +372,4 @@ class Real2SimRuntime:
         时序：必须在“算力矩→写引擎→采样”之后、sim.step 之前调用，使收绳边界与
               下一步的关节状态保持同一时间基准。
         """
-        self.plant.advance(self.controller_speed_rad_s, dt_s, q_rad=q_rad, qd_rad_s=qd_rad_s)
+        self.plant.advance(self.motor_target_speed_rad_s, dt_s, q_rad=q_rad, qd_rad_s=qd_rad_s)

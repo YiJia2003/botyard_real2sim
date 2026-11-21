@@ -36,8 +36,11 @@ controller:
   ki_deg_s_per_deg_step: 1.0
   # 微分增益；0.0 表示当前固件分支不使用微分作用。
   kd_deg_s_per_deg_step: 0.0
-  # 目标角限幅 deg（0.5–89.5 deg），避开关节机械端点。
-  min_angle_deg: 0.5
+  # H7 real2sim 目标角下限：MFJ3 预紧地板 2.5 deg，其余 0.5 deg。
+  # 这是指令限幅，不裁剪实测角，也不是物理止点。来源见 docs/REAL2SIM_CONTROLLER_SYNC.md。
+  min_angle_deg:
+    default: 0.5
+    MFJ3: 2.5
   max_angle_deg: 89.5
   # 死区 deg：|角误差| 小于该值时误差清零，并复位积分项。
   dead_zone_deg: 1.0
@@ -63,6 +66,13 @@ controller:
   quantize_output: true
   # 冷启动前每个手指要等待的评估次数；0 = 热启动（标定回放默认），50 复现冷启动。
   startup_pair_evaluations: 0
+  # G4 real2sim 实验配置：电机转子侧速度死区，严格 |v| < 200 rad/s 才置零。
+  # 普通固件默认 250；TRACE 开关本身不选择 200，须核对录制时的编译配置/读回值。
+  motor_velocity_deadband_rad_s: 200.0
+  # 转子/绕线轮速度比；200/800 = 0.25 rad/s 绕线轮侧阈值。不是腱绳几何力臂。
+  motor_gear_ratio: 800.0
+  # G4 moduleMaxVel 源码默认，单位为绕线轮 rad/s；实际 Flash 参数可覆盖。
+  motor_spool_speed_limit_rad_s: 6.25
 
 # ── 腱绳、走线弹簧、回位拉簧、关节摩擦、几何与走线动力学 ──
 tendon:

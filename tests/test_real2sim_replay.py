@@ -337,6 +337,24 @@ def test_dynamic_routing_csv_fields_preserve_independent_tensions_and_state(repl
             assert values[f"{joint}/{field}"] == result.routing_state[field][0, index].item()
 
 
+def test_csv_distinguishes_h7_request_from_g4_gated_speed(replay):
+    import torch
+
+    from botyard_real2sim.runtime import Real2SimRuntime
+
+    cfg = load_config(SCRIPT.parents[1] / "configs/real2sim/s1.yaml")
+    runtime = Real2SimRuntime(cfg, dtype=torch.float64)
+    q = torch.zeros((1, 10), dtype=torch.float64)
+    runtime.reset(q)
+    runtime.controller_speed_rad_s[0, 4:6] = torch.tensor([0.249, 0.25], dtype=q.dtype)
+    result = runtime.evaluate(q, q)
+    row = replay["_row"](0, q, q, runtime, result, result.joint_effort_nm, q[:, [2, 4, 6, 8]], 0)
+    values = dict(zip(replay["_header"](), row, strict=True))
+    assert values["MFJ2/controller_speed_rad_s"] == 0.249
+    assert values["MFJ2/motor_target_speed_rad_s"] == 0
+    assert values["MFJ3/motor_target_speed_rad_s"] == 0.25
+
+
 def test_motor_initial_state_uses_same_row_and_keeps_missing_channels_explicit(replay, tmp_path):
     path = write_csv(
         tmp_path / "motor.csv",

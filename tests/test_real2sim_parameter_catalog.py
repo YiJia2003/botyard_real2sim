@@ -81,3 +81,25 @@ def test_parameters_cli_emits_json_without_engine_imports():
     assert catalog["schema_version"] == 1
     assert "torch" not in result.stderr
     assert "isaaclab" not in result.stderr
+
+
+def test_driver_catalog_distinguishes_disabled_legacy_gate_and_firmware_settings():
+    config = load_config(S1)
+    items = _by_path(describe_parameters(config))
+    for path in (
+        "controller.min_angle_deg.MFJ3",
+        "controller.max_angle_deg.MFJ3",
+        "controller.motor_velocity_deadband_rad_s.MFJ3",
+        "controller.motor_gear_ratio.MFJ3",
+        "controller.motor_spool_speed_limit_rad_s.MFJ3",
+    ):
+        assert items[path]["kind"] == "controller"
+        assert items[path]["tunability"] == "lock_to_verified_firmware"
+        assert items[path]["active_status"] == "active"
+    legacy = replace(
+        config, controller=replace(config.controller, motor_velocity_deadband_rad_s=0, motor_spool_speed_limit_rad_s=0)
+    )
+    legacy_items = _by_path(describe_parameters(legacy))
+    assert legacy_items["controller.motor_velocity_deadband_rad_s.MFJ3"]["active_status"] == "inactive"
+    assert legacy_items["controller.motor_gear_ratio.MFJ3"]["active_status"] == "inactive"
+    assert legacy_items["controller.motor_spool_speed_limit_rad_s.MFJ3"]["active_status"] == "inactive"

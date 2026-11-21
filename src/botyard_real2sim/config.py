@@ -313,6 +313,14 @@ class FallbackControllerConfig:
     #   （回放默认），50 = 复刻固件冷启动等待。它不改变控制律，只改变起步的瞬态。
     startup_pair_evaluations: int = 0
 
+    # G4 driver command conditioning, applied by Real2SimRuntime AFTER H7 output
+    # quantization. The deadband is rotor-side rad/s; the plant port is spool-side.
+    # Zero deadband/limit preserves historical snapshots' ideal speed-port behavior.
+    # Current real2sim presets explicitly select 200 rad/s, ratio 800 and 6.25 rad/s.
+    motor_velocity_deadband_rad_s: tuple[float, ...] = (0.0,) * 10
+    motor_gear_ratio: tuple[float, ...] = (800.0,) * 10
+    motor_spool_speed_limit_rad_s: tuple[float, ...] = (0.0,) * 10
+
     def __post_init__(self) -> None:
         """解析向量参数并执行构造期验证（frozen 对象的唯一校验点）。
 
@@ -321,7 +329,7 @@ class FallbackControllerConfig:
         角度下限小于上限、周期为正）。任一项不满足即抛 ValueError，不做裁剪。
         """
         _resolve_vectors(self)
-        # 以下六个字段必须恰好 10 个分量，顺序按 JOINT_NAMES。
+        # 以下字段必须恰好 10 个分量，顺序按 JOINT_NAMES。
         for name in (
             "kp_deg_s_per_deg",
             "ki_deg_s_per_deg_step",
@@ -329,11 +337,18 @@ class FallbackControllerConfig:
             "min_angle_deg",
             "max_angle_deg",
             "dead_zone_deg",
+            "motor_velocity_deadband_rad_s",
+            "motor_gear_ratio",
+            "motor_spool_speed_limit_rad_s",
         ):
             _check_vector(name, getattr(self, name), 10)
         # 增益类字段允许为 0（例如停用积分或微分），但不允许为负。
         for name in ("kp_deg_s_per_deg", "ki_deg_s_per_deg_step", "kd_deg_s_per_deg_step", "dead_zone_deg"):
             _check_vector(name, getattr(self, name), 10, minimum=0.0)
+        for name in ("motor_velocity_deadband_rad_s", "motor_spool_speed_limit_rad_s"):
+            _check_vector(name, getattr(self, name), 10, minimum=0.0)
+        if any(value <= 0 for value in self.motor_gear_ratio):
+            raise ValueError("motor_gear_ratio must be positive for every joint")
         # 以下标量参数必须严格为正：任何 0 周期或 0 分辨率都会让控制器失效。
         for name in (
             "integral_region_deg",
