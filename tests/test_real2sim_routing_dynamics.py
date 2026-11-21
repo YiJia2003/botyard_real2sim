@@ -239,3 +239,70 @@ def test_reset_without_distal_tension_keeps_legacy_equal_split():
     state = d.evaluate(x, y)
     torch.testing.assert_close(state["proximal_tension"], array(11.66), atol=1e-9, rtol=1e-9)
     torch.testing.assert_close(state["distal_tension"], array(11.66), atol=1e-9, rtol=1e-9)
+
+
+def test_slip_state_is_off_by_default_and_bit_identical() -> None:
+    """With routing_slip_max_length_m = 0 the dynamics must be unchanged."""
+    base = config()
+    with_slip_api = config()
+    a = DynamicRoutingTransmission(base, 1, "cpu")
+    b = DynamicRoutingTransmission(with_slip_api, 1, "cpu")
+    x = y = array()
+    a.reset(x, y, array())
+    b.reset(x, y, array(), initial_slip=array(0.0))
+    for value in [min(0.006, (i + 1) * 0.00003) for i in range(300)]:
+        new_x = array(value)
+        a.advance(x, new_x, y, y, 0.0001)
+        b.advance(x, new_x, y, y, 0.0001)
+        x = new_x
+    torch.testing.assert_close(a.u, b.u)
+    torch.testing.assert_close(a.slip, b.slip)
+    assert float(a.slip.abs().max()) == 0.0
+
+
+def test_slip_pays_out_slack_on_release_and_takes_it_up_on_reload() -> None:
+    """Routing slip accumulates while the path unloads and clears while it reloads.
+
+    中文：滑动累积状态——卸载时让出绳长（走线张力走低分支），重新加载时收回。
+    时间常数取实测量级：释放 0.1 s 内让出大部分，0.3 s 内到地板。
+    """
+    c = config(
+        routing_slip_max_length_m=(0.008,) * 10,
+        routing_slip_release_tau_s=(0.1,) * 10,
+        routing_slip_load_tau_s=(0.02,) * 10,
+        routing_spring_free_length_m=(0.0,) * 10,
+        routing_spring_max_length_m=(0.01,) * 10,
+    )
+    d = DynamicRoutingTransmission(c, 1, "cpu")
+    x = array(0.006)
+    y = array()
+    d.reset(x, y, array(11.62), distal_tension=array(13.6))
+    tension_at_start = float(d.evaluate(x, y)["spring_tension"].max())
+    # 卸载 0.4 s：电机侧放绳 6 mm。
+    for _ in range(400):
+        new_x = array(x[0, 0].item() - 0.000015)
+        d.advance(x, new_x, y, y, 0.001)
+        x = new_x
+    released = float(d.slip.max())
+    assert released > 0.006  # 0.4 s / τ=0.1 s 应让出 > 75% 的上限
+    assert float(d.evaluate(x, y)["spring_tension"].max()) < tension_at_start
+    # 重新加载 0.2 s：收绳量回到原处附近 → 滑移快速收回。
+    for _ in range(200):
+        new_x = array(x[0, 0].item() + 0.000025)
+        d.advance(x, new_x, y, y, 0.001)
+        x = new_x
+    assert float(d.slip.max()) < 0.05 * released
+
+
+def test_initial_slip_lowers_the_spring_tension_at_fixed_endpoints() -> None:
+    """The slip state is exactly a lost routing extension: kr * slip less tension."""
+    c = config(routing_slip_max_length_m=(0.012,) * 10)
+    d = DynamicRoutingTransmission(c, 1, "cpu")
+    x = array(0.012)
+    y = array()
+    d.reset(x, y, array(11.62), distal_tension=array(13.6), initial_slip=array(0.006))
+    state = d.evaluate(x, y)
+    torch.testing.assert_close(
+        state["routing_extension"], torch.clamp_min(d.u - d.v - 0.006, 0.0), atol=1e-12, rtol=0.0
+    )
+    torch.testing.assert_close(state["routing_slip"], array(0.006), atol=1e-12, rtol=0.0)

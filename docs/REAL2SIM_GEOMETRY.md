@@ -169,6 +169,13 @@ F = kb*z_new + b*N/(Tscale+N)*velocity
 `routing_max_substep_s` 限制内部步长，S1 初值为 0.1 ms；PhysX 步长独立设置。
 该方法包含数值耗散，不能把其平滑效果当成已辨识的真实摩擦。拟合高频/加速度响应时须减小内部步长和 PhysX 步长检查整段曲线敏感性。
 
+2026-11-21 对完整 22.03 s 释放/保持记录进行了 0.1/0.2 ms CPU PhysX 对比，外部物理步保持 1 ms。
+0.2 ms 将内部求解次数减半，本次循环耗时减少约 24%；但二次释放时 MFJ2 电机侧张力峰值差
+0.1214 N 超过预设 0.1 N 门槛，故**未采用，`s1.yaml` 保持 0.1 ms**。
+试验配置、曲线、全部通道误差和适用限制见 [数值对比报告](../real2sim/results/substep-validation-20261121T050050Z/report.md)。
+此结果不代表 CUDA 加速比例或硬件标定；拟合时不能只凭整体 RMSE 忽略瞬态峰值。
+CLI 默认物理步是 0.0001 s，此时两种内部步长上限每步都只求解一次，不会因此提速。
+
 弹性储能含两段材料、走线弹簧和两个微滑元件，动能来自两个等效质量。
 分别记录摩擦耗散、硬停止碰撞耗散、积分数值耗散、边界输入功以及**未修正的**能量残差。
 能量台账检查的是内部子步的指定边界：当前与 PhysX 的耦合用 `h(q)+h_dot*dt` 预测下一步关节边界。
@@ -296,6 +303,14 @@ PYTHONPATH=src ~/IsaacLab/.venv/bin/python scripts/real2sim_sweep.py \
 | `routing_contact_tension_scale_n` / `routing_contact_path_scale_m` | 5 N / 0.02 m | 饱和尺度 |
 | `routing_contact_load_tau_s` / `routing_contact_release_tau_s` | 0.02 / 0.08 s | 接触形成/释放时间常数 |
 | `routing_max_substep_s` | 0.0001 s | 内部积分上限，数值设置而非物理待拟合量 |
+| `routing_slip_max_length_m` | 0 m（关闭） | 走线滑动累积状态 θ 的上限：绳沿路径可让出的长度，实测分支差 ÷ kr ≈ 8 mm |
+| `routing_slip_load_tau_s` / `routing_slip_release_tau_s` | 0.02 / 0.15 s | θ 的张紧/释放时间常数；释放取实测量级，使分支切换在亚秒级完成 |
+
+走线滑动累积 θ 是**长度**状态：它从走线弹簧的可用伸长里扣掉，等价的张力损失为
+`kr·θ`。实测同一角度存在 6–7 N 的两条分支（MFJ3 6°：上行 15.1 N、下行 7.95 N），
+而 `kr·travel` 只有约 3 N，既有的弹簧行程装不下这个差，θ 就是补上这段容量的状态。
+θ 的初值取 `ΔT/kr`（`equilibrium.initial_slip_m`），释放/张紧用一阶松弛，
+**不需要**额外速率积分项——release-hold 包实测地板在 0.3 s 内到达。
 
 所有初值均未拟合；不要同时自由拟合所有强相关参数。比如：
 

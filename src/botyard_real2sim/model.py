@@ -346,6 +346,7 @@ class TendonPlant:
         motor_velocity_rad_s: torch.Tensor | None = None,
         joint_velocity_rad_s: torch.Tensor | None = None,
         routing_initial_distal_tension_n: torch.Tensor | None = None,
+        routing_initial_slip_m: torch.Tensor | None = None,
     ) -> None:
         """Initialize cable state at rest without integrating time.
 
@@ -480,6 +481,12 @@ class TendonPlant:
                 distal_force = selected_values(routing_initial_distal_tension_n, "routing_initial_distal_tension_n")
                 if torch.any(distal_force < 0):
                     raise ValueError("routing_initial_distal_tension_n cannot be negative")
+            # 走线滑动累积初值（m）：锁定态“让出的绳长”，缺省 0（关闭该状态）。
+            initial_slip = None
+            if routing_initial_slip_m is not None:
+                initial_slip = selected_values(routing_initial_slip_m, "routing_initial_slip_m")
+                if torch.any(initial_slip < 0):
+                    raise ValueError("routing_initial_slip_m cannot be negative")
             # 用“收绳速度 + 边界速度”的平均值作为端口的初始相对速度（m/s）。
             self.routing_dynamics.reset(
                 self.cable_retraction_m[rows],
@@ -488,6 +495,7 @@ class TendonPlant:
                 env_ids=env_ids,
                 velocity=0.5 * (self.cable_speed_m_s[rows] + path_velocity),
                 distal_tension=distal_force,
+                initial_slip=initial_slip,
             )
         self._initialized[rows] = True
         # Synchronize only on a reset, never on each (potentially CUDA) physics substep.

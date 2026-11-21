@@ -614,6 +614,13 @@ class TendonModelConfig:
     #   不等于静摩擦）。**不是**理想 stiction——它不会真正"锁死"关节，只是低速时阻力变大；
     #   所以模型里不能指望它把关节停在任意角度（真实保持靠腱张力）。
     # 约束：该值必须 >= coulomb_friction_nm（否则 Stribeck 曲线非物理）。
+    # 走线滑动累积状态（θ，单位 m）：绳在路径上让出的长度。
+    # 全 0 表示关闭该状态（与历史版本逐位一致）；上限由实测分支差换算
+    # （ΔT/kr ≈ 7.6 N / 1000 N/m ≈ 8 mm）。
+    routing_slip_max_length_m: tuple[float, ...] = (0.0,) * 10
+    routing_slip_load_tau_s: tuple[float, ...] = (0.02,) * 10
+    routing_slip_release_tau_s: tuple[float, ...] = (0.15,) * 10
+
     static_friction_nm: tuple[float, ...] = (0.002,) * 10
     # 【物理】Stribeck 特征角速度 rad/s（0.05 rad/s ≈ 2.9 deg/s）：摩擦从上表的低速值
     #   下降到 Coulomb 值的过渡尺度。手指的正常运动速度远大于它，所以工作中主要表现为
@@ -692,6 +699,13 @@ class TendonModelConfig:
         ):
             if any(v <= 0 for v in getattr(self, name)):
                 raise ValueError(f"{name} must be positive")
+        for name in (
+            "routing_slip_load_tau_s",
+            "routing_slip_release_tau_s",
+        ):
+            if any(v <= 0 for v in getattr(self, name)):
+                raise ValueError(f"{name} must be positive")
+        _check_vector("routing_slip_max_length_m", self.routing_slip_max_length_m, 10, minimum=0.0)
         for name in (
             "routing_friction_mu_static",
             "routing_friction_mu_dynamic",

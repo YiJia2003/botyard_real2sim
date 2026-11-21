@@ -175,6 +175,11 @@ class DynamicRoutingTransmission:
         self.travel = vector("routing_spring_max_length_m") - vector("routing_spring_free_length_m")
         # bristle 切向刚度，单位 N/m；恒定不变，不随接触状态改变。
         self.kb = vector("routing_bristle_stiffness_n_per_m")
+        # 走线滑动累积状态（θ，单位 m）：绳在路径上“让出”的长度，最大 r_slip_max。
+        # 全部时间常数与上限都逐路径可配，缺省 0 表示关闭该状态（行为与历史版本逐位一致）。
+        self.slip_max = vector("routing_slip_max_length_m")
+        self.slip_load_tau = vector("routing_slip_load_tau_s")
+        self.slip_release_tau = vector("routing_slip_release_tau_s")
         # ── 摩擦参数 ──
         self.mu_s = vector("routing_friction_mu_static")  # 静摩擦系数（无量纲）
         self.mu_d = vector("routing_friction_mu_dynamic")  # 动摩擦系数（无量纲）
@@ -224,6 +229,8 @@ class DynamicRoutingTransmission:
             "plastic_slip_v",
             "impact_dissipated",
             "stop_impulse",
+            "slip",
+            "slip_work",
         )
         # 逐字段分配零张量；之后所有更新都是就地 copy_/累加，不改变形状。
         for name in self.state_fields:
@@ -283,6 +290,8 @@ class DynamicRoutingTransmission:
             "numerical_dissipated",
             "impact_dissipated",
             "stop_impulse",
+            "slip",
+            "slip_work",
         ):
             if bool((converted[key] < -1e-10).any()):
                 raise ValueError(f"routing snapshot {key} cannot be negative")
@@ -324,7 +333,7 @@ class DynamicRoutingTransmission:
         ).clamp(0, 1)
 
     # ── 初始化 / 重置 ──
-    def reset(self, x, y, tension, *, env_ids=None, velocity=None, distal_tension=None):
+    def reset(self, x, y, tension, *, env_ids=None, velocity=None, distal_tension=None, initial_slip=None):
         """Place the two masses on a static tension split and clear every accumulator.
 
         【中文】
@@ -379,6 +388,8 @@ class DynamicRoutingTransmission:
             "plastic_slip_v",
             "impact_dissipated",
             "stop_impulse",
+            "slip",
+            "slip_work",
         ):
             getattr(self, name)[rows] = 0
         self.du[rows] = 0 if velocity is None else velocity.to(self.du)
@@ -407,6 +418,10 @@ class DynamicRoutingTransmission:
         self.zu[rows] = held
         self.zv[rows] = held
         self.friction_u[rows] = self.kb * held
+        # 走线滑动累积初值：给定锁定态的“让出绳长”，钳到 [0, slip_max]。
+        if initial_slip is not None:
+            start = initial_slip.to(device=self.device, dtype=self.dtype)
+            self.slip[rows] = start.clamp_min(0).clamp_max(self.slip_max[rows])
         self.friction_v[rows] = self.kb * held
 
     # ── 无状态求值（不推进时间） ──
@@ -441,7 +456,10 @@ class DynamicRoutingTransmission:
         """
         x, y = x.to(self.u), y.to(self.u)
         # 三段伸长量，单位 m。es = u − v 为负表示内部松弛，而非受拉弹簧压缩。
-        ep, ed, es = x - self.u, self.v - y, self.u - self.v
+        ep, ed, es_raw = x - self.u, self.v - y, self.u - self.v
+        # 走线滑动累积：让出的绳长直接从走线弹簧的可用伸长里扣掉，
+        # 因此 es 是“弹簧真正吃到的伸长”，es_raw 是两端点的几何差。
+        es = es_raw - self.slip
         # 材料弹簧只受拉：取伸长正部再乘刚度，故 Tp、Td 恒 ≥ 0。
         tp, td = self.kp * ep.clamp_min(0), self.kd * ed.clamp_min(0)
         spring = self.kr * es.clamp_min(0)
@@ -471,6 +489,8 @@ class DynamicRoutingTransmission:
             spring_tension=ts,
             routing_extension=es.clamp_min(0),
             routing_gap=es.clamp_max(0),
+            routing_extension_raw=es_raw.clamp_min(0),
+            routing_slip=self.slip,
             material_extension=ep + ed,
             material_proximal_extension=ep,
             material_distal_extension=ed,
@@ -482,7 +502,7 @@ class DynamicRoutingTransmission:
             acceleration_u=(tp - ts - self.friction_u) / self.mass,
             acceleration_v=(ts - td - self.friction_v) / self.mass,
             # 恒等式：x − y = ep + es + ed，应恒为 0；非零即状态自相矛盾。
-            length_residual=x - y - ep - es - ed,
+            length_residual=x - y - ep - es_raw - ed,
         )
 
     # ── 外层时间推进 ──
@@ -576,6 +596,31 @@ class DynamicRoutingTransmission:
         plastic_u, plastic_v = delta_u - (new_zu - self.zu), delta_v - (new_zv - self.zv)
         # 集中摩擦合力 = bristle 弹性力 + 粘性力，单位 N（符号随运动方向自动变化）。
         friction_u, friction_v = self.kb * new_zu + damping_u * new_du, self.kb * new_zv + damping_v * new_dv
+        # ── 走线滑动累积（θ）：速率无关的 relay 更新 ──
+        # 电机侧放绳时路径松弛，绳沿路径“让出”长度，θ 朝 slip_max 增长；
+        # 重新张紧时 θ 朝 0 收回。
+        # 两个方向都是一阶松弛，时间常数取实测量级（释放 ~0.15 s、张紧 ~0.02 s），
+        # 因此分支切换在亚秒级完成——与 release-hold 包测到的 0.3 s 翻转一致，
+        # 不需要显式速率积分项。
+        # 判据取边界量的相对位移（电机侧 vs 关节侧），对硬停止锁定也稳健：
+        # 电机放绳（Δx < Δy）即路径松弛，绳让出长度；反之重新张紧。
+        releasing = (x1 - x0) < (y1 - y0)
+        target_slip = torch.where(releasing, self.slip_max, torch.zeros_like(self.slip))
+        tau_slip = torch.where(releasing, self.slip_release_tau, self.slip_load_tau)
+        fraction = -torch.expm1(-dt / tau_slip)
+        slip_before = self.slip
+        new_slip = (self.slip + fraction * (target_slip - self.slip)).clamp_min(0.0).clamp_max(self.slip_max)
+        # 让出/收回绳长改变走线弹簧的储能，这部分功记进数值项，保持能量账目自洽。
+        slip_energy_change = (
+            0.5
+            * self.kr
+            * (
+                (self.u - self.v - new_slip).clamp_min(0).square()
+                - (self.u - self.v - slip_before).clamp_min(0).square()
+            )
+        )
+        self.slip = new_slip
+        self.slip_work += slip_energy_change
         # ── 能量记账：物理耗散 ──
         # 摩擦耗散 = 滑移量 × 平均摩擦力 + 粘性项 dt·c·v²（两者都非负）。
         physical = self.kb * (new_zu * plastic_u + new_zv * plastic_v) + dt * (
@@ -596,7 +641,9 @@ class DynamicRoutingTransmission:
                 after.clamp_min(0).square() - before.clamp_min(0).square()
             )
         # 4) 硬停止反力做的功 reaction·Δes 也计入数值项（刚性约束的离散功）。
-        numerical = bristle_numerical + inertial_numerical + elastic_numerical + reaction * (es1 - es0)
+        numerical = (
+            bristle_numerical + inertial_numerical + elastic_numerical + reaction * (es1 - es0) - slip_energy_change
+        )
         # ── 端口功 ──
         # 电机侧：近端弹簧力 × 电机收绳位移（输入为正）；关节侧：远端弹簧力 × 关节侧
         # 位移，取负号表示能量从传动流向关节。
@@ -614,7 +661,7 @@ class DynamicRoutingTransmission:
         # 冲量改变了速度，粘性摩擦力需按新速度重算（bristle 部分不变）。
         friction_u = self.kb * new_zu + damping_u * new_du
         friction_v = self.kb * new_zv + damping_v * new_dv
-        # ── 写回状态 ──
+        # ── 写回端点与速度（冲量已并进去） ──
         self.u, self.v, self.du, self.dv = new_u, new_v, new_du, new_dv
         self.zu, self.zv = new_zu, new_zv
         self.stop_reaction = reaction

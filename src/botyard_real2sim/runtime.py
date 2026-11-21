@@ -189,6 +189,7 @@ class Real2SimRuntime:
         motor_velocity_rad_s: torch.Tensor | None = None,
         joint_velocity_rad_s: torch.Tensor | None = None,
         routing_initial_distal_tension_n: torch.Tensor | None = None,
+        routing_initial_slip_m: torch.Tensor | None = None,
     ) -> None:
         """Reset controller, plant, clock and every command buffer together.
 
@@ -215,6 +216,7 @@ class Real2SimRuntime:
             motor_velocity_rad_s=motor_velocity_rad_s,
             joint_velocity_rad_s=joint_velocity_rad_s,
             routing_initial_distal_tension_n=routing_initial_distal_tension_n,
+            routing_initial_slip_m=routing_initial_slip_m,
         )
         self.clock.reset()
         # ── 清空指令缓冲与运行统计 ──

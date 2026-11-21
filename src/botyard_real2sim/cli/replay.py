@@ -117,6 +117,14 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="JOINT=N",
         help="Initial distal (joint-side) tension [N] for the dynamic routing reset; repeat per joint",
     )
+    # ── 走线滑动累积初值 [m]，JOINT=M 可重复；缺省 0（关闭该状态） ──
+    parser.add_argument(
+        "--routing-slip-m",
+        action="append",
+        default=[],
+        metavar="JOINT=M",
+        help="Initial routing slip accumulation [m] for the dynamic routing reset; repeat per joint",
+    )
     # ── 时长与配置：--duration 缺省时由最后一帧 + 0.5 s 推出 ──
     parser.add_argument("--duration", type=float)
     parser.add_argument("--config", type=Path)
@@ -613,6 +621,18 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
             if not math.isfinite(distal) or distal < 0:
                 raise ValueError(f"invalid routing distal tension: {assignment}")
             routing_distal_tension[0, JOINT_NAMES.index(name)] = distal
+    # 走线滑动累积初值（JOINT=M）：缺省 0，等价于关闭该状态。
+    routing_initial_slip = None
+    if args.routing_slip_m:
+        routing_initial_slip = torch.zeros((1, len(JOINT_NAMES)), device=args.device, dtype=initial_tension.dtype)
+        for assignment in args.routing_slip_m:
+            name, sep, value = assignment.partition("=")
+            if not sep or name not in JOINT_NAMES:
+                raise ValueError(f"invalid routing slip joint: {assignment}")
+            slip = float(value)
+            if not math.isfinite(slip) or slip < 0:
+                raise ValueError(f"invalid routing slip: {assignment}")
+            routing_initial_slip[0, JOINT_NAMES.index(name)] = slip
     runtime.reset(q, initial_tension, cold_start=args.cold_start)
     # ── 七、用反馈的电机角/角速度覆盖默认值，然后带完整初态再 reset 一次 ──
     motor_positions = runtime.evaluate(q, torch.zeros_like(q)).motor_position_rad.clone()
@@ -627,6 +647,7 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
         initial_tension,
         cold_start=args.cold_start,
         routing_initial_distal_tension_n=routing_distal_tension,
+        routing_initial_slip_m=routing_initial_slip,
         motor_position_rad=motor_positions,
         motor_velocity_rad_s=motor_velocities if initial and initial.motor_velocities_rad_s else None,
         joint_velocity_rad_s=initial_velocity[:, joint_ids],
