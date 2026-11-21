@@ -469,3 +469,115 @@ def test_joint_lower_stop_is_unilateral_and_off_by_default() -> None:
     out2 = plant.evaluate(q2, torch.zeros(1, 10, dtype=torch.float64))
     free = out2.joint_effort_nm[0, j].item() - out2.spring_effort_nm[0, j].item() - out2.tendon_effort_nm[0, j].item()
     assert free == pytest.approx(out2.friction_effort_nm[0, j].item(), abs=1e-9)
+
+
+def test_drum_radius_table_interpolates_and_clamps_outside_the_grid() -> None:
+    """The angle-dependent winding radius interpolates linearly and clamps at the ends."""
+    from botyard_real2sim.config import JOINT_NAMES
+
+    cfg = TendonModelConfig(
+        drum_radius_table_joint="MFJ2",
+        drum_radius_table_deg=(10.0, 40.0, 80.0),
+        drum_radius_table_m=(0.0060, 0.0076, 0.0050),
+    )
+    plant = TendonPlant(cfg, num_envs=1, device="cpu", dtype=torch.float64)
+    j = JOINT_NAMES.index("MFJ2")
+    for deg, expect in ((10.0, 0.0060), (25.0, 0.0068), (40.0, 0.0076), (60.0, 0.0063), (80.0, 0.0050)):
+        q = torch.zeros(1, 10, dtype=torch.float64)
+        q[0, j] = math.radians(deg)
+        radius = plant.drum_radius_effective(q)
+        assert radius[0, j].item() == pytest.approx(expect, rel=1e-9)
+        # 其它关节保持常数半径。
+        other = 0 if j != 0 else 1
+        assert radius[0, other].item() == pytest.approx(cfg.drum_radius_m[other])
+    # 网格外钳到端点，不外插。
+    for deg, expect in ((-5.0, 0.0060), (120.0, 0.0050)):
+        q = torch.zeros(1, 10, dtype=torch.float64)
+        q[0, j] = math.radians(deg)
+        assert plant.drum_radius_effective(q)[0, j].item() == pytest.approx(expect, rel=1e-9)
+
+
+def test_motor_angle_correction_derivative_matches_the_target_ratio() -> None:
+    """The readout correction adds exactly the measured slope on top of the constant baseline."""
+    from botyard_real2sim.config import JOINT_NAMES
+
+    deg = (5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0)
+    radius = (0.00542, 0.00583, 0.00691, 0.00737, 0.00756, 0.00728, 0.00664, 0.00572, 0.00531)
+    cfg = TendonModelConfig(
+        drum_radius_m=(0.00608,) * 10,
+        drum_radius_table_joint="MFJ2",
+        drum_radius_table_deg=deg,
+        drum_radius_table_m=radius,
+    )
+    plant = TendonPlant(cfg, num_envs=1, device="cpu", dtype=torch.float64)
+    j = JOINT_NAMES.index("MFJ2")
+    plant.reset(torch.full((1, 10), math.radians(60.0), dtype=torch.float64))
+    # 常数基线 R_base = (dh/dq)/drum：读数的常数部分贡献该斜率，修正补足到实测 R(θ)。
+    base = plant._ratio_base.item()  # noqa: SLF001 - 校验内部基线
+    for lo, hi in ((60.0, 70.0), (70.0, 80.0)):
+        q_lo = torch.zeros(1, 10, dtype=torch.float64)
+        q_lo[0, j] = math.radians(lo)
+        q_hi = torch.zeros(1, 10, dtype=torch.float64)
+        q_hi[0, j] = math.radians(hi)
+        # 用中点附近的中心差分取“局部斜率”，与段内线性插值半径一致。
+        eps = math.radians(0.02)
+        mid_rad = math.radians((lo + hi) / 2)
+        plus = torch.zeros(1, 10, dtype=torch.float64)
+        plus[0, j] = mid_rad + eps
+        minus = torch.zeros(1, 10, dtype=torch.float64)
+        minus[0, j] = mid_rad - eps
+        slope = (plant.motor_angle_correction(plus)[0, j].item() - plant.motor_angle_correction(minus)[0, j].item()) / (
+            2 * eps
+        )
+        # 区间内 R 线性插值，取中点比较。
+        mid = (lo + hi) / 2
+        idx = max(i for i, v in enumerate(deg) if v <= mid)
+        span = deg[idx + 1] - deg[idx]
+        weight = (mid - deg[idx]) / span
+        arm = plant.geometry.evaluate(torch.zeros(1, 10, dtype=torch.float64))[1][0, j, j].item()  # noqa: SLF001
+        r_mid = radius[idx] + weight * (radius[idx + 1] - radius[idx])
+        expected = arm / r_mid - base
+        assert slope == pytest.approx(expected, rel=1e-5)
+
+
+def test_drum_radius_table_must_be_monotone_and_positive() -> None:
+    """A non-monotone grid or a non-positive radius is rejected at construction."""
+    from botyard_real2sim.config import TendonModelConfig
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        TendonModelConfig(
+            drum_radius_table_joint="MFJ2",
+            drum_radius_table_deg=(10.0, 10.0, 80.0),
+            drum_radius_table_m=(0.006, 0.007, 0.005),
+        )
+    with pytest.raises(ValueError, match="positive"):
+        TendonModelConfig(
+            drum_radius_table_joint="MFJ2",
+            drum_radius_table_deg=(10.0, 40.0),
+            drum_radius_table_m=(0.006, 0.0),
+        )
+    with pytest.raises(ValueError, match="equal length"):
+        TendonModelConfig(
+            drum_radius_table_joint="MFJ2",
+            drum_radius_table_deg=(10.0, 40.0),
+            drum_radius_table_m=(0.006,),
+        )
+    with pytest.raises(ValueError, match="JOINT_NAMES"):
+        TendonModelConfig(
+            drum_radius_table_joint="XXJ9",
+            drum_radius_table_deg=(10.0, 40.0),
+            drum_radius_table_m=(0.006, 0.007),
+        )
+
+
+def test_drum_radius_table_is_off_by_default_and_bit_identical() -> None:
+    """Without a table the readout radius is the constant and the trace is unchanged."""
+    from botyard_real2sim.config import JOINT_NAMES
+
+    base = TendonModelConfig()
+    assert base.drum_radius_table_deg == () and base.drum_radius_table_m == ()
+    j = JOINT_NAMES.index("MFJ2")
+    radius = TendonPlant(base, 1, "cpu", torch.float64).drum_radius_effective(
+        torch.full((1, 10), 0.6, dtype=torch.float64)
+    )
+    assert torch.equal(radius, torch.full((1, 10), base.drum_radius_m[j], dtype=torch.float64))

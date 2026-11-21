@@ -244,6 +244,17 @@ class TendonPlant:
         # ── 配置量纲化：每个参数展开成形状 [1, 10]，与 [num_envs, 10] 广播 ──
         # 绕线轮半径（m），默认 5 mm；把收绳量 x 换算成电机角。
         self._drum_radius = self._vector(cfg.drum_radius_m)
+        # 角度相关有效半径表：单关节插值，空表 = 关闭（保留常数回退）。
+        self._radius_table_index = JOINT_NAMES.index(cfg.drum_radius_table_joint) if cfg.drum_radius_table_deg else None
+        if self._radius_table_index is None:
+            self._radius_grid_rad = None
+            self._radius_table_m = None
+        else:
+            self._radius_grid_rad = torch.tensor(
+                [math.radians(v) for v in cfg.drum_radius_table_deg], device=self.device, dtype=dtype
+            )
+            self._radius_table_m = torch.tensor(cfg.drum_radius_table_m, device=self.device, dtype=dtype)
+            self._theta_reference = torch.zeros(self.num_envs, device=self.device, dtype=dtype)
         # 电机编码器符号（±1），决定 x 增大时电机角增或减。
         self._motor_sign = self._vector(cfg.motor_encoder_sign)
         # 绳材料轴向刚度（N/m）。
@@ -271,6 +282,23 @@ class TendonPlant:
         )
         # 几何模型：提供 h(q)、dh/dq 与回位弹簧走线；缺省 specs 时退回常力臂矩阵。
         self.geometry = TendonGeometry(cfg.geometry, self.routing_matrix_m)
+        # 角度表基线：R_base = (dh/dq)/drum_radius，几何建立后才能数值求该关节常数臂。
+        if self._radius_table_index is not None:
+            row = self._radius_table_index
+            probe = torch.zeros(self._shape, device=self.device, dtype=dtype)
+            # 该腱行对本关节的常数臂 dh/dq（m/rad），即几何雅可比对应项。
+            arm = self.geometry.evaluate(probe)[1][:, row, row]
+            self._arm_constant_m = arm
+            self._ratio_base = arm / self._drum_radius[:, row]
+            # R(θ) = (dh/dq)/r_eff(θ)，预积分 ∫R dθ 供增量修正。
+            # 表是 r_eff(θ) 的分段线性插值，故 ∫(dh/dq)/r dθ 在段内是 arm·span·ln(r1/r0)/(r1−r0)。
+            radii = self._radius_table_m
+            seg = self._radius_grid_rad[1:] - self._radius_grid_rad[:-1]
+            r0, r1 = radii[:-1], radii[1:]
+            same = (r1 - r0).abs() <= 1e-12 * r0.abs().clamp_min(1e-30)
+            ratio = torch.where(same, torch.ones_like(r1), r1 / r0)
+            segment = torch.where(same, arm * seg / r0, arm * seg * torch.log(ratio) / (r1 - r0))
+            self._ratio_integral = torch.cat([torch.zeros(1, device=self.device, dtype=dtype), segment.cumsum(0)])
         # ── 回位弹簧（长度/方向模型）参数，全部单边只能拉 ──
         # 回位弹簧刚度（N/m）、自由长度（m）、初始张力（N）。
         self._return_k = self._vector(cfg.return_spring_stiffness_n_per_m)
@@ -490,6 +518,9 @@ class TendonPlant:
             self.motor_zero_angle_rad[rows] = (
                 measured_motor - self._motor_sign * self.cable_retraction_m[rows] / self._drum_radius
             )
+        # 角度表：记录 reset 姿态为修正基准（此时修正量恒为 0，零点对齐仍成立）。
+        if self._radius_table_index is not None:
+            self._theta_reference[rows] = q_selected[:, self._radius_table_index]
         # 电机角速度（rad/s）→ 收绳速度（m/s）：ẋ = sign * ω_motor * r_drum。
         self.cable_speed_m_s[rows] = (
             0.0 if measured_speed is None else measured_speed * self._drum_radius * self._motor_sign
@@ -641,6 +672,74 @@ class TendonPlant:
         return self.evaluate(q_rad, qd_rad_s)
 
     # ── 求力：只读当前状态，不推进任何积分 ──
+    def drum_radius_effective(self, q_rad: torch.Tensor) -> torch.Tensor:
+        """Per-env winding radius, with an optional angle-dependent table for one joint.
+
+        【中文】
+        返回形状 [num_envs, 10] 的绕线半径（m）。未配置表时就是常数 `drum_radius_m`；
+        配置了 `drum_radius_table_*` 时，把该关节那一列替换成按关节角线性插值的值
+        （端点外推一律钳到端点，不做外插）。表来自实测 d(motor)/d(joint)：
+        r_eff(θ) = (dh/dq) / R_measured(θ)。
+
+        参数：q_rad —— 关节角 [num_envs, 10]，单位 rad。
+        返回：半径张量 [num_envs, 10]，单位 m。
+        """
+        if self._radius_table_index is None:
+            return self._drum_radius.expand_as(q_rad)
+        theta = q_rad[:, self._radius_table_index]
+        grid = self._radius_grid_rad
+        values = self._radius_table_m
+        # searchsorted 给右邻下标，再在主区间内做一次线性插值；端点钳位。
+        upper = torch.searchsorted(grid, theta.clamp(grid[0], grid[-1])).clamp(1, grid.numel() - 1)
+        lower = upper - 1
+        span = grid[upper] - grid[lower]
+        weight = ((theta - grid[lower]) / span).clamp(0.0, 1.0)
+        interp = values[lower] + weight * (values[upper] - values[lower])
+        radius = self._drum_radius.expand_as(q_rad).clone()
+        radius[:, self._radius_table_index] = interp
+        return radius
+
+    def motor_angle_correction(self, q_rad: torch.Tensor) -> torch.Tensor:
+        """Angle-dependent motor-readout correction for the configured joint.
+
+        【中文】
+        未配置表时返回全零（逐位不变）。配置了 `drum_radius_table_*` 时返回
+        Δφ(θ) = ∫_{θ_ref}^{θ} [R(θ') − R_base] dθ'，其中 R(θ) = (dh/dq)/r_eff(θ)
+        是实测的 d(motor)/d(joint)，R_base = (dh/dq)/drum_radius_m 是常数基线。
+        写成增量积分而不是直接换成 x/r_eff，是因为 x 里含常数偏置，直接相除会把
+        偏置一起放大（实测过：跨度会翻倍）。
+
+        参数：q_rad —— 关节角 [num_envs, 10]，单位 rad。
+        返回：修正角 [num_envs, 10]，单位 rad（仅该关节那一列非零）。
+        """
+        if self._radius_table_index is None:
+            return torch.zeros_like(q_rad)
+        theta = q_rad[:, self._radius_table_index]
+        grid = self._radius_grid_rad
+        radii = self._radius_table_m
+        arm = self._arm_constant_m
+        clamped = theta.clamp(grid[0], grid[-1])
+
+        def integral(x: torch.Tensor) -> torch.Tensor:
+            # R 在每段内线性，故 ∫R 是二次式：I = I0 + R0·δ + (R1−R0)·δ²/(2·span)。
+            upper = torch.searchsorted(grid, x).clamp(1, grid.numel() - 1)
+            lower = upper - 1
+            span = grid[upper] - grid[lower]
+            delta = (x - grid[lower]).clamp_min(0.0).clamp_max(span)
+            r0, r1 = radii[lower], radii[upper]
+            same = (r1 - r0).abs() <= 1e-12 * r0.abs().clamp_min(1e-30)
+            local = torch.where(
+                same, arm * delta / r0, arm * span * torch.log((r0 + delta * (r1 - r0) / span) / r0) / (r1 - r0)
+            )
+            return self._ratio_integral[lower] + local
+
+        reference = self._theta_reference.clamp(grid[0], grid[-1])
+        correction = (integral(clamped) - integral(reference)) - self._ratio_base * (clamped - reference)
+        # 只改该关节那一列，其余关节读数保持常数映射。
+        out = torch.zeros_like(q_rad)
+        out[:, self._radius_table_index] = correction
+        return out
+
     def evaluate(self, q_rad: torch.Tensor, qd_rad_s: torch.Tensor) -> TendonStepResult:
         """Compute forces from the current state without changing it.
 
@@ -776,6 +875,8 @@ class TendonPlant:
         spring_effort = spring_effort - torch.einsum("bi,bij->bj", return_force, return_jacobian)
         # ── 关节轴摩擦：静止保持 + 粘滞/Stribeck 滑移 ──
         # 速度比 |q̇|/v_stribeck（无量纲），分母下限 1e-12 防除零。
+        # 电机读数：配置了角度表时，按 ∫(R(θ)−R_base)dθ 做增量修正（不放大常数偏置）。
+        motor_angle_correction = self.motor_angle_correction(q_rad)
         speed_ratio = qd_rad_s.abs() / self._stribeck_speed.clamp_min(1e-12)
         # 干摩擦幅值（N·m）：低速趋近静摩擦，高速趋近 Coulomb：
         # μ(|q̇|) = Coulomb + (Static - Coulomb)·exp(-(|q̇|/v_s)²)。
@@ -823,7 +924,7 @@ class TendonPlant:
             cable_extension_m=extension,
             cable_speed_m_s=self.cable_speed_m_s.clone(),
             motor_position_rad=self.motor_zero_angle_rad
-            + self._motor_sign * self.cable_retraction_m / self._drum_radius,
+            + self._motor_sign * (self.cable_retraction_m / self._drum_radius + motor_angle_correction),
             motor_velocity_rad_s=self._motor_sign * self.cable_speed_m_s / self._drum_radius,
             motor_acceleration_rad_s2=self.motor_acceleration_rad_s2.clone(),
             routing_extension_m=routing_extension,

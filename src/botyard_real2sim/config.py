@@ -129,6 +129,8 @@ def _finite(name: str, value: Any, *, minimum: float | None = None, positive: bo
 
 # 允许 inf 的向量字段（inf 有明确语义：关闭该分段/限制）。
 _INF_ALLOWED_FIELDS = frozenset({"return_spring_knee_m", "joint_lower_stop_deg"})
+# 不按关节展开的浮点元组字段（角度网格 + 取值表）。
+_TABLE_FIELDS = frozenset({"drum_radius_table_deg", "drum_radius_table_m"})
 
 
 def _resolve_vectors(instance: Any) -> None:
@@ -151,6 +153,9 @@ def _resolve_vectors(instance: Any) -> None:
     """
     for item in fields(instance):
         if not isinstance(item.default, tuple):
+            continue
+        # 角度表字段不是按关节展开的向量，原样保留（逐元素校验在 __post_init__）。
+        if item.name in _TABLE_FIELDS:
             continue
         names = JOINT_NAMES if len(item.default) == 10 else FINGER_NAMES
         value = getattr(instance, item.name)
@@ -569,6 +574,11 @@ class TendonModelConfig:
     # 缺省拐点 inf、第二刚度等于第一刚度 ⇒ 逐位等同旧的单段行为。
     return_spring_stiffness_high_n_per_m: tuple[float, ...] = (1000.0,) * 10
     return_spring_knee_m: tuple[float, ...] = (math.inf,) * 10
+    # 角度相关有效绕线半径（实测 d(motor)/d(joint) 表）：grid 为 deg，radius 为 m。
+    # 空表 = 关闭，逐位等同常数 drum_radius_m（保留常数回退）。
+    drum_radius_table_joint: str = ""
+    drum_radius_table_deg: tuple[float, ...] = ()
+    drum_radius_table_m: tuple[float, ...] = ()
     # 关节低角单向限位：q 低于该角时产生单边反力。-inf 表示无限位（缺省，逐位不变）。
     joint_lower_stop_deg: tuple[float, ...] = (-math.inf,) * 10
     joint_stop_stiffness_nm_per_rad: tuple[float, ...] = (10.0,) * 10
@@ -714,6 +724,21 @@ class TendonModelConfig:
         if any(x not in (-1.0, 1.0) for x in self.motor_encoder_sign):
             raise ValueError("motor_encoder_sign must be -1 or +1")
         _check_vector("return_path_length_offset_m", self.return_path_length_offset_m, 10)
+        # 角度相关半径表：先统一成 float 元组（YAML 里可能写成 list），再校验。
+        object.__setattr__(self, "drum_radius_table_deg", tuple(float(v) for v in self.drum_radius_table_deg))
+        object.__setattr__(self, "drum_radius_table_m", tuple(float(v) for v in self.drum_radius_table_m))
+        # 长度一致、grid 严格递增、半径为正、关节名合法。
+        if self.drum_radius_table_deg:
+            if len(self.drum_radius_table_deg) != len(self.drum_radius_table_m):
+                raise ValueError("drum_radius_table_deg and drum_radius_table_m must have equal length")
+            if len(self.drum_radius_table_deg) < 2:
+                raise ValueError("drum_radius_table needs at least two points")
+            if any(b <= a for a, b in zip(self.drum_radius_table_deg, self.drum_radius_table_deg[1:], strict=False)):
+                raise ValueError("drum_radius_table_deg must be strictly increasing")
+            if any(r <= 0 for r in self.drum_radius_table_m):
+                raise ValueError("drum_radius_table_m must be positive")
+            if self.drum_radius_table_joint not in JOINT_NAMES:
+                raise ValueError("drum_radius_table_joint must name a joint in JOINT_NAMES")
         # 分段回位刚度：拐点允许 inf（表示无拐点），其余必须为正有限值。
         if len(self.return_spring_knee_m) != 10:
             raise ValueError("return_spring_knee_m must contain 10 values")
