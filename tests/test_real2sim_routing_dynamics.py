@@ -306,3 +306,40 @@ def test_initial_slip_lowers_the_spring_tension_at_fixed_endpoints() -> None:
         state["routing_extension"], torch.clamp_min(d.u - d.v - 0.006, 0.0), atol=1e-12, rtol=0.0
     )
     torch.testing.assert_close(state["routing_slip"], array(0.006), atol=1e-12, rtol=0.0)
+
+
+def test_creep_rate_adds_a_slow_component_on_top_of_the_relay() -> None:
+    """Optional creep term: after the relay settles, the slack keeps growing slowly.
+
+    中文：relay 之后的可选小速率项——实测 3° 保持 8.5 s 继续爬 +0.45 N（≈0.053 N/s），
+    对应 θ 的爬升速率 5.3e-5 m/s（kr = 1000 N/m）；静止保持时 θ 不得被收回。
+    """
+    common = dict(
+        routing_slip_max_length_m=(0.05,) * 10,
+        routing_slip_release_tau_s=(0.15,) * 10,
+        routing_slip_load_tau_s=(0.02,) * 10,
+        routing_spring_free_length_m=(0.0,) * 10,
+        routing_spring_max_length_m=(0.03,) * 10,
+    )
+    x = array(0.012)
+    y = array()
+
+    def run(cfg):
+        d = DynamicRoutingTransmission(cfg, 1, "cpu")
+        d.reset(x, y, array(11.62), distal_tension=array(13.6))
+        cur = x
+        for _ in range(60):  # 0.6 s 卸载
+            nxt = array(cur[0, 0].item() - 0.00005)
+            d.advance(cur, nxt, y, y, 0.01)
+            cur = nxt
+        relayed = float(d.slip.max())
+        for _ in range(200):  # 再静止保持 2 s（边界不动）
+            d.advance(cur, cur, y, y, 0.01)
+        return relayed, float(d.slip.max())
+
+    r0, h0 = run(config(**common))
+    r1_, h1 = run(config(**common, routing_slip_creep_m_per_s=(5.3e-05,) * 10))
+    # relay 段两者一致（同一时间常数），保持段只有带爬升项的继续增长。
+    assert abs(r0 - r1_) < 5e-4
+    assert h0 - r0 < 1e-6  # 无速率项时静止保持不漂移
+    assert 0.7e-4 < h1 - r1_ < 1.4e-4  # 2 s × 5.3e-5 m/s ≈ 1.06e-4 m

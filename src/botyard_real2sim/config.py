@@ -127,6 +127,10 @@ def _finite(name: str, value: Any, *, minimum: float | None = None, positive: bo
         raise ValueError(f"{name} must be {'positive' if positive else f'>= {minimum}'}")
 
 
+# 允许 inf 的向量字段（inf 有明确语义：关闭该分段/限制）。
+_INF_ALLOWED_FIELDS = frozenset({"return_spring_knee_m"})
+
+
 def _resolve_vectors(instance: Any) -> None:
     """Expand scalar, ordered sequence, or partial named overrides of defaults.
 
@@ -166,8 +170,14 @@ def _resolve_vectors(instance: Any) -> None:
             raise ValueError(f"{item.name} must be a scalar, sequence, or named mapping")
         if len(value) != len(names):
             raise ValueError(f"{item.name} must contain {len(names)} values")
+        # 个别字段允许 inf（例如回位弹簧拐点，inf 表示无拐点）：只拒绝 nan。
+        allow_inf = item.name in _INF_ALLOWED_FIELDS
         for number in value:
-            _finite(item.name, number)
+            if allow_inf:
+                if not isinstance(number, Real) or isinstance(number, bool) or math.isnan(number):
+                    raise ValueError(f"{item.name} must be a number (inf allowed)")
+            else:
+                _finite(item.name, number)
         object.__setattr__(instance, item.name, tuple(float(number) for number in value))
 
 
@@ -555,6 +565,10 @@ class TendonModelConfig:
     # 注意它与 routing_spring_stiffness_n_per_m 是**两套独立参数**（当前默认值恰好相同）：
     #   前者是手指上的实体弹簧，走长度/方向模型；后者是绳在导槽间的等效弹性。不可混用。
     return_spring_stiffness_n_per_m: tuple[float, ...] = (1000.0,) * 10
+    # 分段回位刚度：拉伸超过 return_spring_knee_m 后改用第二刚度。
+    # 缺省拐点 inf、第二刚度等于第一刚度 ⇒ 逐位等同旧的单段行为。
+    return_spring_stiffness_high_n_per_m: tuple[float, ...] = (1000.0,) * 10
+    return_spring_knee_m: tuple[float, ...] = (math.inf,) * 10
     # 【物理】回位弹簧的自由长度（未拉伸时的长度，图纸标注 20 mm）。实际安装长度由几何
     #   决定，通常 > 自由长，所以弹簧常态处于拉伸状态、持续提供回复力。
     # 单位 m；它只影响"从哪一点开始算伸长"，不是力值。
@@ -620,6 +634,9 @@ class TendonModelConfig:
     routing_slip_max_length_m: tuple[float, ...] = (0.0,) * 10
     routing_slip_load_tau_s: tuple[float, ...] = (0.02,) * 10
     routing_slip_release_tau_s: tuple[float, ...] = (0.15,) * 10
+    # 可选的小速率项（m/s）：relay 到地板后继续缓慢让出绳长。
+    # 实测 3° 保持 8.5 s 爬 +0.45 N ≈ 0.053 N/s，折算 5.3e-5 m/s（kr = 1000 N/m）。
+    routing_slip_creep_m_per_s: tuple[float, ...] = (0.0,) * 10
 
     static_friction_nm: tuple[float, ...] = (0.002,) * 10
     # 【物理】Stribeck 特征角速度 rad/s（0.05 rad/s ≈ 2.9 deg/s）：摩擦从上表的低速值
@@ -665,6 +682,7 @@ class TendonModelConfig:
             "routing_spring_free_length_m",
             "routing_spring_max_length_m",
             "return_spring_stiffness_n_per_m",
+            "return_spring_stiffness_high_n_per_m",
             "return_spring_free_length_m",
             "return_spring_initial_tension_n",
             "return_tether_length_m",
@@ -685,6 +703,11 @@ class TendonModelConfig:
         if any(x not in (-1.0, 1.0) for x in self.motor_encoder_sign):
             raise ValueError("motor_encoder_sign must be -1 or +1")
         _check_vector("return_path_length_offset_m", self.return_path_length_offset_m, 10)
+        # 分段回位刚度：拐点允许 inf（表示无拐点），其余必须为正有限值。
+        if len(self.return_spring_knee_m) != 10:
+            raise ValueError("return_spring_knee_m must contain 10 values")
+        if any(v <= 0 or math.isnan(v) for v in self.return_spring_knee_m):
+            raise ValueError("return_spring_knee_m must be positive or inf")
         # 走线模型是枚举，不接受其他拼写（例如 "dynamic " 或 "quasi"）。
         if self.routing_model not in ("quasistatic", "dynamic"):
             raise ValueError("routing_model must be quasistatic or dynamic")
@@ -706,6 +729,7 @@ class TendonModelConfig:
             if any(v <= 0 for v in getattr(self, name)):
                 raise ValueError(f"{name} must be positive")
         _check_vector("routing_slip_max_length_m", self.routing_slip_max_length_m, 10, minimum=0.0)
+        _check_vector("routing_slip_creep_m_per_s", self.routing_slip_creep_m_per_s, 10, minimum=0.0)
         for name in (
             "routing_friction_mu_static",
             "routing_friction_mu_dynamic",

@@ -394,3 +394,44 @@ def test_plant_reset_distal_tension_defaults_to_proximal() -> None:
     torch.testing.assert_close(plant_new.routing_dynamics.v, plant_old.routing_dynamics.v)
     torch.testing.assert_close(plant_new.routing_dynamics.zu, plant_old.routing_dynamics.zu)
     torch.testing.assert_close(plant_new.routing_dynamics.zv, plant_old.routing_dynamics.zv)
+
+
+def test_return_spring_can_be_bilinear_without_changing_the_default_path() -> None:
+    """A knee makes the return spring soft near free length and stiff beyond it.
+
+    中文：回位拉簧的分段刚度——实测 3°/7.8 N 需要 ~500 N/m，而 5° 锁定态 12.7 N 需要
+    ~1000 N/m；用单一段无法两全，故给一个拐点，缺省拐点为 inf（逐位等同旧行为）。
+    """
+    from botyard_real2sim.config import TendonModelConfig
+
+    base = TendonModelConfig()
+    assert all(math.isinf(v) for v in base.return_spring_knee_m)
+    assert base.return_spring_stiffness_high_n_per_m == base.return_spring_stiffness_n_per_m
+
+
+def test_bilinear_return_force_matches_measured_levels() -> None:
+    """Check the two-segment force law directly against the measured levels."""
+    import torch
+
+    from botyard_real2sim.model import bilinear_return_force
+
+    k_low, k_high, knee = 500.0, 1000.0, 0.0008
+    zero = torch.zeros(())
+    # 分段内仍是 k_low；跨过拐点后斜率变为 k_high。
+    assert bilinear_return_force(
+        torch.tensor(0.0004, dtype=torch.float64), 0.0, k_low, k_high, knee, zero
+    ).item() == pytest.approx(0.0004 * k_low)
+    assert bilinear_return_force(
+        torch.tensor(knee, dtype=torch.float64), 0.0, k_low, k_high, knee, zero
+    ).item() == pytest.approx(knee * k_low)
+    assert bilinear_return_force(
+        torch.tensor(knee + 0.001, dtype=torch.float64), 0.0, k_low, k_high, knee, zero
+    ).item() == pytest.approx(knee * k_low + 0.001 * k_high)
+    # 无拐点（inf）时退化为单段，与旧公式逐位一致。
+    assert bilinear_return_force(
+        torch.tensor(0.002, dtype=torch.float64), 0.0, 1000.0, 1000.0, math.inf, zero
+    ).item() == pytest.approx(2.0)
+    # 负拉伸被单边约束钳到 0（弹簧不能被压缩）。
+    assert (
+        bilinear_return_force(torch.tensor(-0.001, dtype=torch.float64), 0.0, k_low, k_high, knee, zero).item() == 0.0
+    )

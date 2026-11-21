@@ -305,12 +305,16 @@ PYTHONPATH=src ~/IsaacLab/.venv/bin/python scripts/real2sim_sweep.py \
 | `routing_max_substep_s` | 0.0001 s | 内部积分上限，数值设置而非物理待拟合量 |
 | `routing_slip_max_length_m` | 0 m（关闭） | 走线滑动累积状态 θ 的上限：绳沿路径可让出的长度，实测分支差 ÷ kr ≈ 8 mm |
 | `routing_slip_load_tau_s` / `routing_slip_release_tau_s` | 0.02 / 0.15 s | θ 的张紧/释放时间常数；释放取实测量级，使分支切换在亚秒级完成 |
+| `routing_slip_creep_m_per_s` | 0 m/s（关闭） | 可选小速率项：relay 到地板后继续让出绳长的速度；实测 3° 保持 +0.45 N/8.5 s ≈ 5.3e-5 m/s |
+| `return_spring_stiffness_high_n_per_m` / `return_spring_knee_m` | 同第一刚度 / inf | 回位拉簧的分段力律；缺省 inf 表示单段（逐位不变） |
 
 走线滑动累积 θ 是**长度**状态：它从走线弹簧的可用伸长里扣掉，等价的张力损失为
 `kr·θ`。实测同一角度存在 6–7 N 的两条分支（MFJ3 6°：上行 15.1 N、下行 7.95 N），
 而 `kr·travel` 只有约 3 N，既有的弹簧行程装不下这个差，θ 就是补上这段容量的状态。
 θ 的初值取 `ΔT/kr`（`equilibrium.initial_slip_m`），释放/张紧用一阶松弛，
-**不需要**额外速率积分项——release-hold 包实测地板在 0.3 s 内到达。
+**不需要**额外速率积分项——release-hold 包实测地板在 0.3 s 内到达（15.2→7.35 N，
+1 s 内到位），之后只叠加可选的 +0.45 N/8.5 s 爬升。静止保持时 θ **冻结**，
+否则停住不动会把已让出的绳长收回去，与实测矛盾。
 
 所有初值均未拟合；不要同时自由拟合所有强相关参数。比如：
 

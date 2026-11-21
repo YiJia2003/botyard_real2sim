@@ -180,6 +180,8 @@ class DynamicRoutingTransmission:
         self.slip_max = vector("routing_slip_max_length_m")
         self.slip_load_tau = vector("routing_slip_load_tau_s")
         self.slip_release_tau = vector("routing_slip_release_tau_s")
+        # 可选小速率项：relay 之后继续让出绳长的速度（m/s），缺省 0。
+        self.slip_creep = vector("routing_slip_creep_m_per_s")
         # ── 摩擦参数 ──
         self.mu_s = vector("routing_friction_mu_static")  # 静摩擦系数（无量纲）
         self.mu_d = vector("routing_friction_mu_dynamic")  # 动摩擦系数（无量纲）
@@ -604,12 +606,21 @@ class DynamicRoutingTransmission:
         # 不需要显式速率积分项。
         # 判据取边界量的相对位移（电机侧 vs 关节侧），对硬停止锁定也稳健：
         # 电机放绳（Δx < Δy）即路径松弛，绳让出长度；反之重新张紧。
-        releasing = (x1 - x0) < (y1 - y0)
+        # 静止保持（Δx = Δy）时 θ 冻结——否则停住不动会把已让出的绳长又收回去，
+        # 与实测「3° 保持 8.5 s 仍在 7.35→7.80 N」矛盾。
+        travel_boundary = (x1 - x0) - (y1 - y0)
+        moving = travel_boundary.abs() > 1e-12
+        releasing = travel_boundary < -1e-12
         target_slip = torch.where(releasing, self.slip_max, torch.zeros_like(self.slip))
         tau_slip = torch.where(releasing, self.slip_release_tau, self.slip_load_tau)
         fraction = -torch.expm1(-dt / tau_slip)
         slip_before = self.slip
-        new_slip = (self.slip + fraction * (target_slip - self.slip)).clamp_min(0.0).clamp_max(self.slip_max)
+        # relay 松弛 + 可选小速率项：卸载时额外按 slip_creep·dt 增长；静止保持时
+        # 只允许爬升（θ 已 > 0 才爬），不会凭空把 θ 清零也不会自发产生松弛。
+        creep_active = releasing | (~moving & (self.slip > 0))
+        creep = torch.where(creep_active, self.slip_creep * dt, torch.zeros_like(self.slip))
+        relaxed = (self.slip + fraction * (target_slip - self.slip) + creep).clamp_min(0.0).clamp_max(self.slip_max)
+        new_slip = torch.where(moving, relaxed, (self.slip + creep).clamp_min(0.0).clamp_max(self.slip_max))
         # 让出/收回绳长改变走线弹簧的储能，这部分功记进数值项，保持能量账目自洽。
         slip_energy_change = (
             0.5

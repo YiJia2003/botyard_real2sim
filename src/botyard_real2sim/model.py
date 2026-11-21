@@ -65,6 +65,31 @@ from .routing_dynamics import DynamicRoutingTransmission
 from .transmission import SeriesRoutingSpring
 
 
+def bilinear_return_force(stretch, initial, k_low, k_high, knee, zero):
+    """Return-spring force with an optional knee in the force-extension curve.
+
+    【中文】
+    单边（只能拉、不能压）的两段线性力律：``stretch ≤ knee`` 时
+    ``initial + k_low·stretch``；超过拐点后第二段改用 ``k_high``。
+    ``knee = inf`` 或 ``k_high = k_low`` 时逐位退化为旧的单段公式。
+
+    参数:
+        stretch: 拉伸量张量，单位 m；
+        initial: 预紧力，单位 N；
+        k_low:   第一段刚度，单位 N/m；
+        k_high:  超过拐点后的第二段刚度，单位 N/m；
+        knee:    拐点拉伸量，单位 m（inf 表示无拐点）；
+        zero:    与 stretch 同形的零张量，用于松弛侧返回 0。
+    返回: 弹簧力张量，单位 N。
+    """
+    # knee = inf 时 min(stretch, knee) = stretch 且 stretch − knee < 0，
+    # 于是第二段自然后退化为单段（不需要 inf 分支，也不需要主机同步）。
+    capped = torch.minimum(stretch, torch.as_tensor(knee, dtype=stretch.dtype, device=stretch.device))
+    beyond = torch.clamp_min(stretch - capped, 0.0)
+    force = initial + k_low * capped + k_high * beyond
+    return torch.where(stretch > 0, force, zero)
+
+
 # ── 子步输出容器 ──
 @dataclass(frozen=True)
 class TendonStepResult:
@@ -251,6 +276,8 @@ class TendonPlant:
         self._return_k = self._vector(cfg.return_spring_stiffness_n_per_m)
         self._return_free = self._vector(cfg.return_spring_free_length_m)
         self._return_initial = self._vector(cfg.return_spring_initial_tension_n)
+        self._return_k_high = self._vector(cfg.return_spring_stiffness_high_n_per_m)
+        self._return_knee = self._vector(cfg.return_spring_knee_m)
         # 系绳长度与路径长度偏置（m），用于由几何路径长度换算出弹簧拉伸量。
         self._return_tether = self._vector(cfg.return_tether_length_m)
         self._return_offset = self._vector(cfg.return_path_length_offset_m)
@@ -728,9 +755,12 @@ class TendonPlant:
             # 单边：松弛时保持自由长度，不被压缩。
             return_length[:, index] = self._return_free[:, index] + stretch.clamp_min(0)
             # 单边力（N）：stretch > 0 时为 预紧 + k·stretch，否则为 0。
-            return_force[:, index] = torch.where(
-                stretch > 0,
-                self._return_initial[:, index] + self._return_k[:, index] * stretch,
+            return_force[:, index] = bilinear_return_force(
+                stretch,
+                self._return_initial[:, index],
+                self._return_k[:, index],
+                self._return_k_high[:, index],
+                self._return_knee[:, index],
                 torch.zeros_like(stretch),
             )
             # Geometry replaces, never adds to, the legacy angular spring.
