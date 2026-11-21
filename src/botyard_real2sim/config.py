@@ -128,7 +128,7 @@ def _finite(name: str, value: Any, *, minimum: float | None = None, positive: bo
 
 
 # 允许 inf 的向量字段（inf 有明确语义：关闭该分段/限制）。
-_INF_ALLOWED_FIELDS = frozenset({"return_spring_knee_m"})
+_INF_ALLOWED_FIELDS = frozenset({"return_spring_knee_m", "joint_lower_stop_deg"})
 
 
 def _resolve_vectors(instance: Any) -> None:
@@ -569,6 +569,13 @@ class TendonModelConfig:
     # 缺省拐点 inf、第二刚度等于第一刚度 ⇒ 逐位等同旧的单段行为。
     return_spring_stiffness_high_n_per_m: tuple[float, ...] = (1000.0,) * 10
     return_spring_knee_m: tuple[float, ...] = (math.inf,) * 10
+    # 关节低角单向限位：q 低于该角时产生单边反力。-inf 表示无限位（缺省，逐位不变）。
+    joint_lower_stop_deg: tuple[float, ...] = (-math.inf,) * 10
+    joint_stop_stiffness_nm_per_rad: tuple[float, ...] = (10.0,) * 10
+    joint_stop_damping_nm_s_per_rad: tuple[float, ...] = (0.05,) * 10
+    # 限位上方的方向死区：在 [stop, stop+band] 内附加库仑保持力矩，复现实测 0.7° 死区。
+    joint_stop_band_deg: tuple[float, ...] = (0.7,) * 10
+    joint_stop_band_friction_nm: tuple[float, ...] = (0.0,) * 10
     # 【物理】回位弹簧的自由长度（未拉伸时的长度，图纸标注 20 mm）。实际安装长度由几何
     #   决定，通常 > 自由长，所以弹簧常态处于拉伸状态、持续提供回复力。
     # 单位 m；它只影响"从哪一点开始算伸长"，不是力值。
@@ -684,6 +691,10 @@ class TendonModelConfig:
             "return_spring_stiffness_n_per_m",
             "return_spring_stiffness_high_n_per_m",
             "return_spring_free_length_m",
+            "joint_stop_stiffness_nm_per_rad",
+            "joint_stop_damping_nm_s_per_rad",
+            "joint_stop_band_deg",
+            "joint_stop_band_friction_nm",
             "return_spring_initial_tension_n",
             "return_tether_length_m",
             "spring_stiffness_nm_per_rad",

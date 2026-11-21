@@ -278,6 +278,12 @@ class TendonPlant:
         self._return_initial = self._vector(cfg.return_spring_initial_tension_n)
         self._return_k_high = self._vector(cfg.return_spring_stiffness_high_n_per_m)
         self._return_knee = self._vector(cfg.return_spring_knee_m)
+        # 低角单向限位（deg → rad）与死区带；-inf 表示不启用。
+        self._joint_stop_rad = self._vector(cfg.joint_lower_stop_deg) * (math.pi / 180.0)
+        self._stop_k = self._vector(cfg.joint_stop_stiffness_nm_per_rad)
+        self._stop_c = self._vector(cfg.joint_stop_damping_nm_s_per_rad)
+        self._stop_band_rad = self._vector(cfg.joint_stop_band_deg) * (math.pi / 180.0)
+        self._stop_band_friction = self._vector(cfg.joint_stop_band_friction_nm)
         # 系绳长度与路径长度偏置（m），用于由几何路径长度换算出弹簧拉伸量。
         self._return_tether = self._vector(cfg.return_tether_length_m)
         self._return_offset = self._vector(cfg.return_path_length_offset_m)
@@ -787,8 +793,19 @@ class TendonPlant:
         normalized_speed = (qd_rad_s.abs() / self._friction_smoothing.clamp_min(1e-12)).clamp(0.0, 1.0)
         hold_weight = 1.0 - normalized_speed * normalized_speed * (3.0 - 2.0 * normalized_speed)
         friction_effort = hold_weight * hold_effort + (1.0 - hold_weight) * stribeck_effort
-        # 关节总力矩（N·m）= 腱绳虚功 + 回位弹簧 + 关节摩擦。
-        joint_effort = tendon_effort + spring_effort + friction_effort
+        # ── 低角单向限位 + 方向死区 ──
+        # penetration > 0 表示越过限位，反力为单边弹簧-阻尼；限位下方不拉回。
+        penetration = self._joint_stop_rad - q_rad
+        stop_effort = torch.where(
+            penetration > 0,
+            self._stop_k * penetration - self._stop_c * qd_rad_s,
+            torch.zeros_like(penetration),
+        )
+        # 死区带：限位上方 band 内附加库仑保持力矩，复现实测 0.7° 的方向死区。
+        in_band = (penetration <= 0) & (penetration > -self._stop_band_rad)
+        band_effort = -self._stop_band_friction * torch.tanh(qd_rad_s / self._friction_smoothing) * in_band
+        # 关节总力矩（N·m）= 腱绳虚功 + 回位弹簧 + 关节摩擦 + 限位/死区。
+        joint_effort = tendon_effort + spring_effort + friction_effort + stop_effort + band_effort
 
         # 组装输出快照；长度/速度/能量量均为 m、m/s、J，力矩为 N·m。
         # 其中 motor_position_rad = 零点偏置 + sign·x/r_drum（rad），

@@ -435,3 +435,37 @@ def test_bilinear_return_force_matches_measured_levels() -> None:
     assert (
         bilinear_return_force(torch.tensor(-0.001, dtype=torch.float64), 0.0, k_low, k_high, knee, zero).item() == 0.0
     )
+
+
+def test_joint_lower_stop_is_unilateral_and_off_by_default() -> None:
+    """A commanded low angle must not drive the joint below the measured floor."""
+    from botyard_real2sim.config import TendonModelConfig
+
+    base = TendonModelConfig()
+    # 缺省 -inf：限位不启用，力矩路径与旧版逐位一致。
+    assert all(math.isinf(v) and v < 0 for v in base.joint_lower_stop_deg)
+
+    # 越过限位时反力为正（把关节顶回去）；未越过时不产生反力。
+    cfg = TendonModelConfig(
+        joint_lower_stop_deg={"MFJ3": 2.94},
+        joint_stop_stiffness_nm_per_rad={"MFJ3": 10.0},
+        joint_stop_damping_nm_s_per_rad={"MFJ3": 0.0},
+        joint_stop_band_friction_nm={"MFJ3": 0.0},
+    )
+    plant = TendonPlant(cfg, num_envs=1, device="cpu", dtype=torch.float64)
+    from botyard_real2sim.config import JOINT_NAMES
+
+    j = JOINT_NAMES.index("MFJ3")
+    assert j >= 0
+    stop_rad = 2.94 * math.pi / 180.0
+    q = torch.zeros(1, 10, dtype=torch.float64)
+    q[0, j] = stop_rad - 0.01  # 越过限位 0.01 rad
+    plant.reset(q)
+    out = plant.evaluate(q, torch.zeros(1, 10, dtype=torch.float64))
+    assert out.joint_effort_nm[0, j] > 0
+    q2 = q.clone()
+    q2[0, j] = stop_rad + 0.01
+    plant.reset(q2)
+    out2 = plant.evaluate(q2, torch.zeros(1, 10, dtype=torch.float64))
+    free = out2.joint_effort_nm[0, j].item() - out2.spring_effort_nm[0, j].item() - out2.tendon_effort_nm[0, j].item()
+    assert free == pytest.approx(out2.friction_effort_nm[0, j].item(), abs=1e-9)
