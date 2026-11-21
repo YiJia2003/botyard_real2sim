@@ -345,6 +345,7 @@ class TendonPlant:
         motor_position_rad: torch.Tensor | None = None,
         motor_velocity_rad_s: torch.Tensor | None = None,
         joint_velocity_rad_s: torch.Tensor | None = None,
+        routing_initial_distal_tension_n: torch.Tensor | None = None,
     ) -> None:
         """Initialize cable state at rest without integrating time.
 
@@ -472,6 +473,13 @@ class TendonPlant:
                 path_velocity = torch.einsum(
                     "bij,bj->bi", self.geometry.evaluate(q_selected)[1], qd.expand_as(q_selected)
                 )
+            # 摩擦锁定的夹持态：远端（关节侧）张力可与近端（实测）不同；
+            # 缺省仍取同一张力（旧的两侧平分行为，逐位不变）。
+            distal_force = None
+            if routing_initial_distal_tension_n is not None:
+                distal_force = selected_values(routing_initial_distal_tension_n, "routing_initial_distal_tension_n")
+                if torch.any(distal_force < 0):
+                    raise ValueError("routing_initial_distal_tension_n cannot be negative")
             # 用“收绳速度 + 边界速度”的平均值作为端口的初始相对速度（m/s）。
             self.routing_dynamics.reset(
                 self.cable_retraction_m[rows],
@@ -479,6 +487,7 @@ class TendonPlant:
                 initial_force,
                 env_ids=env_ids,
                 velocity=0.5 * (self.cable_speed_m_s[rows] + path_velocity),
+                distal_tension=distal_force,
             )
         self._initialized[rows] = True
         # Synchronize only on a reset, never on each (potentially CUDA) physics substep.
@@ -610,7 +619,7 @@ class TendonPlant:
         2) 串联走线弹簧把总伸长分摊为走线伸长 + 材料伸长，并给出张力。
         3) 张紧支路加阻尼；松弛支路张力恒为 0（单边，不能推）。
         4) 远端张力经雅可比做虚功 J^T·Td 得到腱绳关节力矩。
-        5) 叠加回位弹簧（长度/方向模型）与关节轴摩擦（平滑 Coulomb/Stribeck）。
+        5) 叠加回位弹簧（长度/方向模型）与关节轴摩擦（静止保持 + 平滑 Coulomb/Stribeck）。
 
         异常：形状/取值非法或未先 reset 时抛 ValueError / RuntimeError。
         """
@@ -721,16 +730,25 @@ class TendonPlant:
             spring_effort[:, index] = 0.0
         # 弹簧力经回位弹簧自身雅可比做虚功：Δτ = -J_return^T · F_return（N·m）。
         spring_effort = spring_effort - torch.einsum("bi,bij->bj", return_force, return_jacobian)
-        # ── 关节轴摩擦：粘滞 + Stribeck 平滑 Coulomb，方向恒与 q̇ 相反 ──
+        # ── 关节轴摩擦：静止保持 + 粘滞/Stribeck 滑移 ──
         # 速度比 |q̇|/v_stribeck（无量纲），分母下限 1e-12 防除零。
         speed_ratio = qd_rad_s.abs() / self._stribeck_speed.clamp_min(1e-12)
         # 干摩擦幅值（N·m）：低速趋近静摩擦，高速趋近 Coulomb：
         # μ(|q̇|) = Coulomb + (Static - Coulomb)·exp(-(|q̇|/v_s)²)。
         dry_friction_magnitude = self._coulomb + (self._static - self._coulomb) * torch.exp(-(speed_ratio**2))
-        # τ_friction = -b·q̇ - μ·tanh(q̇/v_smooth)（N·m），tanh 只是平滑替换 sign。
-        friction_effort = -self._viscous * qd_rad_s - dry_friction_magnitude * torch.tanh(
+        # 滑移支路（原 Stribeck 律）：τ = -b·q̇ - μ·tanh(q̇/v_smooth)（N·m）。
+        stribeck_effort = -self._viscous * qd_rad_s - dry_friction_magnitude * torch.tanh(
             qd_rad_s / self._friction_smoothing
         )
+        # 保持支路（静摩擦带）：把腱绳与回位弹簧的合力矩在 ±Static 内完全平衡，
+        # 超过该带才留下 τ_applied - sign(τ_applied)·Static 的滑移残差。
+        applied_effort = tendon_effort + spring_effort
+        hold_effort = -torch.clamp(applied_effort, -self._static, self._static)
+        # 平滑权重：|q̇| = 0 时完全保持；|q̇| ≥ friction_smoothing 时完全回到 Stribeck。
+        # smoothstep 保证权重在两端一阶连续，避免静止/滑动切换时的力矩跳变。
+        normalized_speed = (qd_rad_s.abs() / self._friction_smoothing.clamp_min(1e-12)).clamp(0.0, 1.0)
+        hold_weight = 1.0 - normalized_speed * normalized_speed * (3.0 - 2.0 * normalized_speed)
+        friction_effort = hold_weight * hold_effort + (1.0 - hold_weight) * stribeck_effort
         # 关节总力矩（N·m）= 腱绳虚功 + 回位弹簧 + 关节摩擦。
         joint_effort = tendon_effort + spring_effort + friction_effort
 

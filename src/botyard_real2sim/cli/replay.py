@@ -109,6 +109,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Third input field [N]; Fallback does not enforce it",
     )
     parser.add_argument("--tension-raw-to-n", type=float, default=0.01)
+    # ── 摩擦锁定的夹持态：远端（关节侧）初始张力 [N]，JOINT=N 可重复 ──
+    parser.add_argument(
+        "--routing-distal-tension-n",
+        action="append",
+        default=[],
+        metavar="JOINT=N",
+        help="Initial distal (joint-side) tension [N] for the dynamic routing reset; repeat per joint",
+    )
     # ── 时长与配置：--duration 缺省时由最后一帧 + 0.5 s 推出 ──
     parser.add_argument("--duration", type=float)
     parser.add_argument("--config", type=Path)
@@ -591,6 +599,20 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
             if tension < 0:
                 raise ValueError(f"negative initial tension for {name}; correct sensor bias before replay")
             initial_tension[0, JOINT_NAMES.index(name)] = tension
+    # 摩擦锁定的夹持态：远端张力覆盖（JOINT=N）。为空时传 None（旧的两侧平分行为）。
+    routing_distal_tension = None
+    if args.routing_distal_tension_n:
+        routing_distal_tension = torch.tensor(
+            [cfg.tendon.initial_tension_n], device=args.device, dtype=initial_tension.dtype
+        )
+        for assignment in args.routing_distal_tension_n:
+            name, sep, value = assignment.partition("=")
+            if not sep or name not in JOINT_NAMES:
+                raise ValueError(f"invalid routing distal tension joint: {assignment}")
+            distal = float(value)
+            if not math.isfinite(distal) or distal < 0:
+                raise ValueError(f"invalid routing distal tension: {assignment}")
+            routing_distal_tension[0, JOINT_NAMES.index(name)] = distal
     runtime.reset(q, initial_tension, cold_start=args.cold_start)
     # ── 七、用反馈的电机角/角速度覆盖默认值，然后带完整初态再 reset 一次 ──
     motor_positions = runtime.evaluate(q, torch.zeros_like(q)).motor_position_rad.clone()
@@ -604,6 +626,7 @@ def run_simulation(args, cfg, frames, initial, overrides, duration, app, sim_cfg
         q,
         initial_tension,
         cold_start=args.cold_start,
+        routing_initial_distal_tension_n=routing_distal_tension,
         motor_position_rad=motor_positions,
         motor_velocity_rad_s=motor_velocities if initial and initial.motor_velocities_rad_s else None,
         joint_velocity_rad_s=initial_velocity[:, joint_ids],

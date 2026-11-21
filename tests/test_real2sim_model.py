@@ -52,6 +52,10 @@ def test_spring_returns_joint_and_friction_dissipates_in_both_directions() -> No
     cfg = TendonModelConfig(
         spring_stiffness_nm_per_rad=(0.1,) * 10,
         viscous_friction_nm_s_per_rad=(0.01,) * 10,
+        # Isolate the viscous/Stribeck term: a nonzero static band would hold the
+        # joint at rest and mask the spring-only assertion below.
+        coulomb_friction_nm=(0.0,) * 10,
+        static_friction_nm=(0.0,) * 10,
     )
     plant = TendonPlant(cfg, num_envs=1, device="cpu", dtype=torch.float64)
     q = _zeros()
@@ -67,6 +71,56 @@ def test_spring_returns_joint_and_friction_dissipates_in_both_directions() -> No
     assert forward.friction_effort_nm[0, 0] < 0.0
     backward = plant.step(q, -moving, _zeros(), dt_s=0.001)
     assert backward.friction_effort_nm[0, 0] > 0.0
+
+
+def test_static_friction_holds_joint_inside_the_band_and_slips_outside_it() -> None:
+    cfg = TendonModelConfig(
+        spring_stiffness_nm_per_rad=(0.1,) * 10,
+        viscous_friction_nm_s_per_rad=(0.0,) * 10,
+        coulomb_friction_nm=(0.01,) * 10,
+        static_friction_nm=(0.05,) * 10,
+        stribeck_speed_rad_s=(0.05,) * 10,
+        friction_smoothing_speed_rad_s=(0.01,) * 10,
+    )
+    plant = TendonPlant(cfg, num_envs=1, device="cpu", dtype=torch.float64)
+
+    # Inside the band: the spring asks for -0.02 N*m, the hold cancels it exactly,
+    # so a joint at rest has no net effort and therefore no drift.
+    for offset in (-0.4, -0.2, 0.0, 0.2, 0.4):
+        q = _zeros()
+        q[0, 0] = offset
+        plant.reset(q)
+        held = plant.evaluate(q, _zeros())
+        assert abs(held.joint_effort_nm[0, 0].item()) < 1e-12
+        assert math.isclose(held.friction_effort_nm[0, 0].item(), -held.spring_effort_nm[0, 0].item(), rel_tol=1e-9)
+
+    # Outside the band: only the excess past +/-Static survives as sliding effort.
+    q = _zeros()
+    q[0, 0] = 0.8
+    plant.reset(q)
+    sliding = plant.evaluate(q, _zeros())
+    assert math.isclose(sliding.spring_effort_nm[0, 0].item(), -0.08, rel_tol=1e-12)
+    assert math.isclose(sliding.joint_effort_nm[0, 0].item(), -0.03, rel_tol=1e-12)
+
+    # Above the smoothing speed the original Stribeck law is recovered verbatim.
+    q = _zeros()
+    q[0, 0] = 0.2
+    plant.reset(q)
+    velocity = _zeros()
+    velocity[0, 0] = 1.0
+    fast = plant.evaluate(q, velocity)
+    dry = 0.01 + (0.05 - 0.01) * math.exp(-((1.0 / 0.05) ** 2))
+    expected = -dry * math.tanh(1.0 / 0.01)
+    assert math.isclose(fast.friction_effort_nm[0, 0].item(), expected, rel_tol=1e-9)
+    assert math.isclose(fast.joint_effort_nm[0, 0].item(), -0.02 + expected, rel_tol=1e-9)
+
+    # The blend is monotone in speed: a half-speed joint keeps half of the hold band.
+    velocity[0, 0] = 0.005
+    half = plant.evaluate(q, velocity)
+    half_dry = 0.01 + (0.05 - 0.01) * math.exp(-((0.005 / 0.05) ** 2))
+    hold_part = 0.5 * 0.02  # friction cancels the -0.02 N*m spring effort
+    slip_part = 0.5 * (-half_dry * math.tanh(0.005 / 0.01))
+    assert math.isclose(half.friction_effort_nm[0, 0].item(), hold_part + slip_part, rel_tol=1e-9)
 
 
 def test_unvalidated_guide_loss_is_rejected() -> None:
@@ -293,3 +347,50 @@ def test_plant_dtype_mismatch_is_clear_and_does_not_mutate_state() -> None:
         TendonPlant(TendonModelConfig(), 1, "cpu", torch.int64)
     with pytest.raises(ValueError, match="integer"):
         TendonPlant(TendonModelConfig(), True, "cpu")
+
+
+def test_plant_reset_passes_distal_tension_to_dynamic_routing() -> None:
+    """Measured held initialization feeds Tp and Td into the dynamic routing reset.
+
+    中文：夹持态初始化——近端张力取实测传感器值，远端张力由调用方给定，
+    两者都传给 DynamicRoutingTransmission.reset；缺省仍保持旧行为。
+    """
+    cfg = TendonModelConfig(routing_model="dynamic", routing_spring_max_length_m=0.01)
+    plant = TendonPlant(cfg, 1, "cpu", dtype=torch.float64)
+    q = _zeros().clone()
+    q[0, 3] = math.radians(5.27)
+    proximal = _zeros().clone()
+    proximal[0, 3] = 11.66
+    distal = _zeros().clone()
+    distal[0, 3] = 10.66
+    plant.reset(q, proximal, routing_initial_distal_tension_n=distal)
+    dynamics = plant.routing_dynamics
+    assert dynamics is not None
+    torch.testing.assert_close(
+        dynamics.friction_u[0, 3] - dynamics.friction_v[0, 3], torch.tensor(0.0, dtype=torch.float64)
+    )
+    # A held difference was accepted and preloaded: the two bristles carry it symmetrically
+    # (each takes half of the 1 N held difference).
+    torch.testing.assert_close(
+        dynamics.friction_u[0, 3] + dynamics.friction_v[0, 3], torch.tensor(1.0, dtype=torch.float64)
+    )
+
+
+def test_plant_reset_distal_tension_defaults_to_proximal() -> None:
+    """Omitting the distal override keeps the exact legacy equal split.
+
+    中文：不给远端张力时，走线 reset 的行为与历史版本逐位一致。
+    """
+    cfg = TendonModelConfig(routing_model="dynamic", routing_spring_max_length_m=0.01)
+    plant_new = TendonPlant(cfg, 1, "cpu", dtype=torch.float64)
+    plant_old = TendonPlant(cfg, 1, "cpu", dtype=torch.float64)
+    q = _zeros().clone()
+    q[0, 3] = math.radians(5.27)
+    tension = _zeros().clone()
+    tension[0, 3] = 11.66
+    plant_new.reset(q, tension, routing_initial_distal_tension_n=None)
+    plant_old.reset(q, tension)
+    torch.testing.assert_close(plant_new.routing_dynamics.u, plant_old.routing_dynamics.u)
+    torch.testing.assert_close(plant_new.routing_dynamics.v, plant_old.routing_dynamics.v)
+    torch.testing.assert_close(plant_new.routing_dynamics.zu, plant_old.routing_dynamics.zu)
+    torch.testing.assert_close(plant_new.routing_dynamics.zv, plant_old.routing_dynamics.zv)

@@ -181,3 +181,61 @@ def test_plant_applies_joint_side_tension_and_preserves_length_with_internal_sla
 def test_invalid_dynamic_parameters_fail_before_simulation(kwargs):
     with pytest.raises(ValueError):
         config(**kwargs)
+
+
+def test_reset_accepts_measured_distal_tension_and_keeps_proximal():
+    """Measured held state: proximal tension from the sensor, distal from the held joint.
+
+    中文：夹持态初始化——近端张力来自传感器，远端张力独立给定；两者不再强制相等。
+    (Tp, Td, x, y) 必须满足长度恒等式 x−y = Tp/kp + es + Td/kd；Tp−Td 之差进入
+    走线弹簧/硬停止与 bristle 预载，旧调用（缺省 Td=Tp）行为不变。
+    """
+    d = DynamicRoutingTransmission(config(), 1, "cpu")
+    # x−y = 0.008: 串联平衡张力 ~12.2 N，锁定差 1 N 由走线弹簧+硬停止+摩擦分担。
+    x = array(0.008)
+    y = array(0.0)
+    proximal = array(11.66)
+    distal = array(10.66)
+    d.reset(x, y, proximal, distal_tension=distal)
+    state = d.evaluate(x, y)
+    torch.testing.assert_close(state["proximal_tension"], proximal, atol=1e-9, rtol=1e-9)
+    torch.testing.assert_close(state["distal_tension"], distal, atol=1e-9, rtol=1e-9)
+    # es = x − y − Tp/kp − Td/kd = 0.008 − 22.32/16000 = 0.006605 m (> travel 1 mm → stop).
+    torch.testing.assert_close(state["routing_extension"], array(0.006605), atol=1e-12, rtol=1e-9)
+    # With the stop saturated, spring_tension = mean(Tp, Td) = 11.16 N.
+    torch.testing.assert_close(state["spring_tension"], array(11.16), atol=1e-9, rtol=1e-9)
+    # The bristle preload carries the held difference: zero node acceleration.
+    assert state["acceleration_u"].abs().max() < 1e-6
+    assert state["acceleration_v"].abs().max() < 1e-6
+    torch.testing.assert_close(d.friction_u, array(0.5), atol=1e-9, rtol=1e-9)
+    torch.testing.assert_close(d.friction_v, array(0.5), atol=1e-9, rtol=1e-9)
+
+
+def test_reset_bristle_preload_clamps_to_the_friction_cone():
+    """A held difference beyond mu_s*N cannot be static; preload saturates at the cone.
+
+    中文：超过摩擦锥的锁定差不可能静态成立——预载钳位到锥边界，
+    剩余不平衡留给后续步弛豫（与真实系统“锁不住就滑”一致）。
+    """
+    d = DynamicRoutingTransmission(config(), 1, "cpu")
+    x = array(0.002)
+    y = array(0.0)
+    d.reset(x, y, array(11.66), distal_tension=array(7.7))  # 3.96 N difference
+    state = d.evaluate(x, y)
+    torch.testing.assert_close(state["proximal_tension"], array(11.66), atol=1e-9, rtol=1e-9)
+    torch.testing.assert_close(state["distal_tension"], array(7.7), atol=1e-9, rtol=1e-9)
+    # Preload sits exactly at the static cone: friction = mu_s * normal.
+    normal = 0.5 * (0.5 * 0.5 * (11.66 + 7.7) * (0.25 + 1.5 * d.contact[0, 0]).clamp_min(0))
+    torch.testing.assert_close(d.friction_u, array(0.25 * normal), atol=1e-9, rtol=1e-6)
+    torch.testing.assert_close(d.friction_v, array(0.25 * normal), atol=1e-9, rtol=1e-6)
+
+
+def test_reset_without_distal_tension_keeps_legacy_equal_split():
+    """Old callers keep the exact old behavior when distal_tension is omitted."""
+    d = DynamicRoutingTransmission(config(), 1, "cpu")
+    x = array(0.004)
+    y = array(0.0)
+    d.reset(x, y, array(11.66))
+    state = d.evaluate(x, y)
+    torch.testing.assert_close(state["proximal_tension"], array(11.66), atol=1e-9, rtol=1e-9)
+    torch.testing.assert_close(state["distal_tension"], array(11.66), atol=1e-9, rtol=1e-9)

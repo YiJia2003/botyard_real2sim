@@ -261,9 +261,11 @@ _DEFINITIONS = (
         "tendon",
         "static_friction_nm",
         "N*m",
-        "Low-speed smooth joint friction magnitude",
-        tunability="fit_with_smooth_law_only",
-        correlation="This is a smooth Stribeck law, not true stationary stiction.",
+        "Joint-axis static friction hold band",
+        correlation=(
+            "Holds the joint while |tendon + spring| stays inside the band and blends into the "
+            "Stribeck law above friction_smoothing_speed_rad_s; correlated with coulomb_friction_nm."
+        ),
     ),
     _Definition("tendon", "stribeck_speed_rad_s", "rad/s", "Joint friction transition speed"),
     _Definition(

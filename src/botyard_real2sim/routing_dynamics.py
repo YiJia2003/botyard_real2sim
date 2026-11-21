@@ -324,24 +324,31 @@ class DynamicRoutingTransmission:
         ).clamp(0, 1)
 
     # ── 初始化 / 重置 ──
-    def reset(self, x, y, tension, *, env_ids=None, velocity=None):
-        """Place the two masses on the static tension split and clear every accumulator.
+    def reset(self, x, y, tension, *, env_ids=None, velocity=None, distal_tension=None):
+        """Place the two masses on a static tension split and clear every accumulator.
 
         【中文】
         把模型重置到一个“与给定静态张力自洽”的状态，并清零所有累计量。
 
         初始位置由静态力平衡反解（不是随便给的）：
-            u = x0 − T / kp          （近端材料弹簧承担 T 的伸长）
-            v = y0 + T / kd          （远端材料弹簧承担 T 的伸长）
-        于是 evaluate() 在该状态下给出的 Tp = Td = T，两个端点受力平衡。
+            u = x0 − Tp / kp         （近端材料弹簧承担近端张力 Tp 的伸长）
+            v = y0 + Td / kd         （远端材料弹簧承担远端张力 Td 的伸长）
+        于是 evaluate() 在该状态下给出 Tp、Td，两个端点受力平衡。
+
+        ``distal_tension`` 用于“摩擦锁定的夹持态”：实测只能得到近端（电机侧）张力，
+        而被走线摩擦锁住的远端张力可以不同。两者之差自动体现在走线弹簧伸长
+        ``es = x − y − Tp/kp − Td/kd`` 里，即锁定的伸长量。缺省时 Td = Tp，
+        与历史行为（两侧平分）完全一致。
         初始速度默认取 0，也可由 velocity 指定（两个端点取同一速度，即纯平移）。
 
         参数:
             x, y:      初始的电机侧收绳量与关节侧等效收绳量，单位 m，
                        形状 [num_envs, 10]（或可广播到它）；
-            tension:   初始静态张力，单位 N，与 x/y 同形；
+            tension:   初始静态张力（近端/电机侧），单位 N，与 x/y 同形；
             env_ids:   可选行选择（切片或索引张量）；None 表示所有环境；
             velocity:  可选初始速度，单位 m/s；None 表示静止；
+            distal_tension: 可选初始远端（关节侧）张力，单位 N，与 x/y 同形；
+                       None 表示取近端张力（旧“两侧平分”行为）；
             velocity 之后的关键字参数必须用关键字传入（* 之后）。
 
         返回: 无（就地写入）。
@@ -349,9 +356,12 @@ class DynamicRoutingTransmission:
         """
         rows = slice(None) if env_ids is None else env_ids
         x, y, tension = (value.to(device=self.device, dtype=self.dtype) for value in (x, y, tension))
-        # 静态分解：拉力 T 由近端/远端材料弹簧按各自刚度分担。
+        # 远端张力：显式给定（摩擦锁定的夹持态）或与近端相同（旧的两侧平分行为）。
+        distal = tension if distal_tension is None else distal_tension.to(device=self.device, dtype=self.dtype)
+        # 静态分解：近端/远端张力分别由两端材料弹簧承担；
+        # 两者之差体现为走线弹簧的（锁定）伸长 es = x − y − Tp/kp − Td/kd。
         self.u[rows] = x - tension / self.kp
-        self.v[rows] = y + tension / self.kd
+        self.v[rows] = y + distal / self.kd
         # 结构状态与所有计账量清零（逐项列出，顺序无关）。
         for name in (
             "zu",
@@ -376,9 +386,28 @@ class DynamicRoutingTransmission:
         self.dv[rows] = self.du[rows]
         # 若静态张力已超过“走线弹簧满行程能提供的拉力”，
         # 差额必须由硬停止反力承担（单向约束，取正部）。
-        self.stop_reaction[rows] = (tension - self.kr * self.travel).clamp_min(0)
+        # evaluate 的判据用当前 es 与速度，这里只需给出与 evaluate 一致的初值。
+        self.stop_reaction[rows] = (torch.maximum(tension, distal) - self.kr * self.travel).clamp_min(0)
         # 接触状态直接取当前条件下的松弛目标值（不做预热）。
-        self.contact[rows] = self.contact_target(tension, self.u[rows] - self.v[rows], y)
+        # 代表张力取两侧平均，与 _step 里的做法一致。
+        self.contact[rows] = self.contact_target(0.5 * (tension + distal), self.u[rows] - self.v[rows], y)
+        # 摩擦锁定的夹持态：bristle 预载到“恰好维持 Tp/Td 之差”的弹性变形，
+        # 使两个节点在初始时刻加速度为零（真实系统里这就是“锁住”的含义）。
+        # 平衡条件：Tp − Ts − Fu = 0 与 Ts − Td − Fv = 0，取 Ts = (Tp+Td)/2 得
+        # Fu = Fv = (Tp − Td)/2，对应 zu = zv = (Tp − Td)/(2·kb)。
+        # 包角按完整接触目标算（与 _step 的 wrap = base + gain·contact 一致）。
+        wrap = (self.wrap_base + self.wrap_gain * self.contact[rows]).clamp_min(0)
+        # 每个集中区的法向力与 _step 同式：0.5·(preload + 0.5·张力·wrap)，
+        # 张力用两侧平均（锁定态下没有走线弹簧的独立读数）。
+        normal = 0.5 * (self.normal_preload + 0.5 * (0.5 * (tension + distal)) * wrap)
+        # 静摩擦上限：μs·N（单区）；预载钳位到摩擦锥——若差值超过锥，静态本来就不可能，
+        # 多余部分会在后续步滑动（与真实系统“锁不住就弛豫”一致）。
+        bound = self.mu_s * normal
+        held = (0.5 * (tension - distal) / self.kb).clamp(min=-bound / self.kb, max=bound / self.kb)
+        self.zu[rows] = held
+        self.zv[rows] = held
+        self.friction_u[rows] = self.kb * held
+        self.friction_v[rows] = self.kb * held
 
     # ── 无状态求值（不推进时间） ──
     def evaluate(self, x, y):
