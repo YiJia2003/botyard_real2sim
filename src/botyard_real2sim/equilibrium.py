@@ -26,17 +26,19 @@ import math
 
 # 实测（角度 [deg], 张力 [N]）表；来源写在每条注释里，不做插值外推。
 # 卸载（下行）分支：MFJ3 low-angle-hold / qs-map r1,r2 / provenance 包。
+# 注意：横轴一律是**实际停位**，不是指令值——low-angle-hold 实测 2.5° 与 3.0° 指令
+# 都停在同一个 2.94°，5.0° 指令停在 4.30°（欠 0.70°）。用指令值查表会系统性偏低。
+# 地板处两次实测 6.43 / 6.65 N（指令 2.5° 与 3.0°），表里取均值 6.54，
+# 重复性 ±0.11 N；两个原始值记录在 FLOOR_REPEATS_N 里便于核对。
 UNLOADED_BRANCH: tuple[tuple[float, float], ...] = (
-    (2.5, 6.15),
-    (2.94, 6.43),
-    (3.29, 6.15),
-    (3.74, 7.35),
+    (2.94, 6.54),
+    (3.74, 7.41),  # 从 5.0° 回到 3.0° 的下行分支
     (6.0, 7.95),
     (9.0, 8.50),
 )
 # 加载（上行）分支：MFJ3 low-angle-hold 5° / qs-map r1,r2 楼梯。
 LOADED_BRANCH: tuple[tuple[float, float], ...] = (
-    (4.30, 13.95),
+    (4.30, 13.79),  # 指令 5.0° 的实际停位（上行分支）
     (5.0, 14.16),
     (6.0, 15.10),
     (9.0, 15.25),
@@ -49,6 +51,12 @@ LOCKED_STATES: tuple[tuple[float, float], ...] = (
 )
 # 摩擦锁定的张力量级：走线摩擦能维持的近端/远端差。实测两处释放实验给出 1.98 N。
 LOCK_GRADIENT_N = 1.98
+# 关节低角物理地板：指令再低也停在 2.94°（指令 2.5° 与 3.0° 都落在这里）。
+JOINT_FLOOR_DEG = 2.94
+# 地板处重复实测的张力原始值，单位 N（指令 2.5° / 3.0°）。
+FLOOR_REPEATS_N: tuple[float, float] = (6.43, 6.65)
+# 静摩擦死区幅度：上行欠 0.70°、下行欠 0.74°，取实测均值 0.7°。
+JOINT_DEADBAND_DEG = 0.7
 # 走线弹簧刚度回退值，单位 N/m；仅当调用方没有给出真实 kr 时用于把张力差换算成滑移量。
 DEFAULT_ROUTING_STIFFNESS_N_PER_M = 1000.0
 
@@ -84,6 +92,72 @@ def equilibrium_tension_n(angle_deg: float, branch: str = "unloaded") -> float:
             weight = (angle_deg - a0) / (a1 - a0)
             return t0 + weight * (t1 - t0)
     return points[-1][1]
+
+
+def settled_angle_deg(
+    command_deg: float,
+    *,
+    approach: str = "unknown",
+    floor_deg: float = JOINT_FLOOR_DEG,
+    deadband_deg: float = JOINT_DEADBAND_DEG,
+) -> float:
+    """Actual settled joint angle for a low-angle command.
+
+    【中文】
+    低角命令的实际停位由两件事决定，实测都能量出来：
+
+    1. **物理地板 2.94°**：指令 2.5° 与 3.0°（从地板往上）都停在 2.94°；
+    2. **静摩擦死区 0.7°**：上行指令欠 0.70°（5.0° → 4.30°），下行指令欠 0.74°
+       （5.0° → 3.0° 指令停在 3.74°）。
+
+    所以查表必须用实际停位而不是指令值。`approach="unknown"` 时只钳地板，
+    不猜死区方向；给出 `"up"` / `"down"` 才按实测方向偏移。
+
+    参数:
+        command_deg:  指令角，单位 deg；
+        approach:     "up"（由低到高）、"down"（由高到低）或 "unknown"；
+        floor_deg:    实测物理地板，单位 deg；
+        deadband_deg: 实测静摩擦死区幅度，单位 deg。
+    返回: 实际停位角度，单位 deg。
+    抛错: 角度非有限，或 approach 不在允许集合内时抛 ValueError。
+    """
+    if not math.isfinite(command_deg):
+        raise ValueError("command angle must be finite")
+    if approach not in ("up", "down", "unknown"):
+        raise ValueError(f"unknown approach: {approach}")
+    if approach == "unknown":
+        return max(command_deg, floor_deg)
+    offset = -deadband_deg if approach == "up" else deadband_deg
+    return max(command_deg + offset, floor_deg)
+
+
+def initial_distal_tension_n_from_table(
+    actual_angle_deg: float, *, branch: str = "unloaded", gradient_n: float = LOCK_GRADIENT_N
+) -> float:
+    """Table-based distal tension when only the start angle is known.
+
+    【中文】
+    冷启动时没有实测近端张力，就用**实际停位**在指定分支上查表，再加实测失衡量。
+    命令角必须先经 :func:`settled_angle_deg` 折算成实际停位。
+
+    参数:
+        actual_angle_deg: 实际停位角，单位 deg（不是指令值）；
+        branch:           unloaded / loaded / locked；
+        gradient_n:       实测失衡量，单位 N。
+    返回: 远端张力，单位 N。
+    """
+    return initial_distal_tension_n(equilibrium_tension_n(actual_angle_deg, branch), gradient_n=gradient_n)
+
+
+def initial_slip_m_from_table(
+    actual_angle_deg: float,
+    *,
+    branch: str = "unloaded",
+    routing_stiffness_n_per_m: float = DEFAULT_ROUTING_STIFFNESS_N_PER_M,
+    gradient_n: float = LOCK_GRADIENT_N,
+) -> float:
+    """Slip initialisation derived from the table branch tension."""
+    return gradient_n / routing_stiffness_n_per_m if routing_stiffness_n_per_m > 0 else 0.0
 
 
 def initial_distal_tension_n(measured_proximal_n: float, *, gradient_n: float = LOCK_GRADIENT_N) -> float:

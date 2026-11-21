@@ -308,6 +308,21 @@ PYTHONPATH=src ~/IsaacLab/.venv/bin/python scripts/real2sim_sweep.py \
 | `routing_slip_creep_m_per_s` | 0 m/s（关闭） | 可选小速率项：relay 到地板后继续让出绳长的速度；实测 3° 保持 +0.45 N/8.5 s ≈ 5.3e-5 m/s |
 | `return_spring_stiffness_high_n_per_m` / `return_spring_knee_m` | 同第一刚度 / inf | 回位拉簧的分段力律；缺省 inf 表示单段（逐位不变） |
 
+### 低角平衡表与查表规则（实测锚点）
+
+| 指令 | 实际停位 | 张力 | 分支 |
+|---|---|---|---|
+| 2.5° | 2.94° | 6.43 N | 下行（地板） |
+| 3.0° | 2.94° | 6.65 N | 下行（地板） |
+| 5.0° | 4.30° | 13.79 N | 上行 |
+| 3.0°（从 5.0° 回） | 3.74° | 7.41 N | 下行 |
+
+- 物理地板 `JOINT_FLOOR_DEG = 2.94°`：指令再低也停在这里。
+- 静摩擦死区 `JOINT_DEADBAND_DEG = 0.7°`：上行欠 0.70°、下行欠 0.74°。
+- **查表一律用实际停位**（`equilibrium.settled_angle_deg`），不要用指令值；
+  初始化按分支取 `实测张力 + 1.98 N`（`initial_distal_tension_n` 或
+  `initial_distal_tension_n_from_table`）。
+
 走线滑动累积 θ 是**长度**状态：它从走线弹簧的可用伸长里扣掉，等价的张力损失为
 `kr·θ`。实测同一角度存在 6–7 N 的两条分支（MFJ3 6°：上行 15.1 N、下行 7.95 N），
 而 `kr·travel` 只有约 3 N，既有的弹簧行程装不下这个差，θ 就是补上这段容量的状态。
